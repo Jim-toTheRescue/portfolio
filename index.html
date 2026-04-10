@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portfolio</title>
+  <link rel="icon" href="https://www.apple.com/favicon.ico">
+  <style>
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --border: #30363d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --green: #3fb950;
+  --red: #f85149;
+  --blue: #58a6ff;
+  --tier1: #da3633;
+  --tier2: #d29922;
+  --tier3: #238636;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body { font-family: monospace; background: var(--bg-primary); color: var(--text-primary); }
+.app { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 16px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.header h1 { font-size: 1.25rem; color: var(--blue); }
+.header-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-family: inherit; }
+.btn-primary { background: var(--blue); color: white; }
+.btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+.btn-danger { background: var(--red); color: white; }
+.summary { display: flex; gap: 24px; padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.summary-item { display: flex; flex-direction: column; }
+.summary-label { font-size: 0.75rem; color: var(--text-secondary); }
+.summary-value { font-size: 1rem; font-weight: 700; }
+.main-content { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 16px; }
+.tier-card { background: var(--bg-secondary); border-radius: 8px; overflow: hidden; }
+.tier-card.tier-1 { border-top: 3px solid var(--tier1); }
+.tier-card.tier-2 { border-top: 3px solid var(--tier2); }
+.tier-card.tier-3 { border-top: 3px solid var(--tier3); }
+.tier-header { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.tier-title { font-weight: 700; }
+.tier-1 .tier-title { color: var(--tier1); }
+.tier-2 .tier-title { color: var(--tier2); }
+.tier-3 .tier-title { color: var(--tier3); }
+.tier-content { padding: 12px; min-height: 120px; }
+.position-item { display: flex; justify-content: space-between; padding: 12px; background: var(--bg-tertiary); border-radius: 6px; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+.position-buffer { opacity: 0.8; border-left: 3px solid var(--text-secondary); }
+.buffer-section { margin-top: 8px; }
+.buffer-label { font-size: 0.625rem; color: var(--text-secondary); margin-bottom: 8px; padding: 4px 8px; background: var(--bg-tertiary); border-radius: 4px; display: inline-block; }
+.position-info { flex: 1; min-width: 150px; }
+.position-code { font-weight: 700; }
+.position-name { font-size: 0.75rem; color: var(--text-secondary); }
+.drift { font-size: 0.75rem; margin-top: 4px; }
+.drift-normal { color: var(--text-primary); }
+.drift-warning { color: #d29922; }
+.drift-critical { color: var(--red); }
+.position-value { text-align: right; margin-right: 12px; }
+.position-value div { font-size: 0.875rem; font-weight: 700; }
+.position-actions { display: flex; flex-direction: column; gap: 4px; }
+.btn-small { padding: 4px 8px; font-size: 0.625rem; border-radius: 4px; border: none; cursor: pointer; font-family: inherit; }
+.btn-small.btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border); }
+.empty-slot { display: flex; align-items: center; justify-content: center; padding: 32px; border: 1px dashed var(--border); border-radius: 6px; color: var(--text-secondary); font-size: 0.75rem; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+.modal { width: 90%; max-width: 400px; background: var(--bg-secondary); border-radius: 8px; }
+.modal.show { display: block; }
+.modal-header { display: flex; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--border); }
+.modal-body { padding: 16px; }
+.modal-footer { padding: 16px; border-top: 1px solid var(--border); }
+.form-group { margin-bottom: 12px; }
+.form-label { display: block; margin-bottom: 4px; font-size: 0.75rem; color: var(--text-secondary); }
+.form-input { width: 100%; padding: 8px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-family: inherit; }
+.form-input:focus { outline: none; border-color: var(--blue); }
+.modal-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.25rem; }
+.history-panel { background: var(--bg-secondary); border-radius: 8px; margin-top: 16px; display: none; }
+.history-panel.show { display: block; }
+.history-header { display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.history-content { max-height: 300px; overflow-y: auto; padding: 12px; }
+.history-item { padding: 8px; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+.history-item:last-child { border-bottom: none; }
+.history-time { font-size: 0.75rem; color: var(--text-secondary); }
+.loading { opacity: 0.7; pointer-events: none; }
+.update-time { font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px; }
+.price-up { color: var(--red); }
+.price-down { color: var(--green); }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; z-index: 200; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.toast.error { border-color: var(--red); color: var(--red); }
+.toast.success { border-color: var(--green); color: var(--green); }
+.rebalance-alert { border: 1px solid var(--red); }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <div class="toast" id="toast"></div>
+  <script>
+(function() {
+  const STORAGE_KEY = 'portfolio';
+  const HISTORY_KEY = 'portfolio-history';
+  const TIER = [
+    { name: '第一梯队', target: 30, limit: 1, buffer: 0, min: 25 },
+    { name: '第二梯队', target: 20, limit: 2, buffer: 1, min: 15, max: 25 },
+    { name: '第三梯队', target: 10, limit: 3, buffer: 3, min: 5, max: 15 }
+  ];
+
+  function entersTier(percent, tier) {
+    var t = TIER[tier - 1];
+    if (tier === 1) return percent >= t.min;
+    return percent >= t.min && percent < t.max;
+  }
+
+  function getUpperLimit(tier) {
+    var t = TIER[tier - 1];
+    return t.max ? t.max : t.min + 10;
+  }
+
+  var data = { positions: [], cash: 0 };
+  var history = [];
+  var showInit = false;
+
+  function loadData() {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) {
+      try {
+        data = JSON.parse(s);
+        if (data.priceTime === undefined) {
+          data.priceTime = null;
+        }
+        data.positions = data.positions.map(function(p) {
+          if (!p.tier || p.tier < 1 || p.tier > 3) {
+            p.tier = 3;
+          }
+          if (p.inBuffer === undefined) {
+            p.inBuffer = false;
+          }
+          return p;
+        });
+      } catch (e) {
+        data = { positions: [], cash: 0 };
+      }
+    }
+    autoRebalance();
+  }
+
+  function saveData() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  }
+
+  function loadHistory() {
+    const s = localStorage.getItem(HISTORY_KEY);
+    if (s) {
+      try {
+        history = JSON.parse(s);
+      } catch (e) {
+        history = [];
+      }
+    }
+  }
+
+  function saveHistory() {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }
+
+  function roundCurrency(n) {
+    return Math.round(n * 100) / 100;
+  }
+
+  function totalValue() {
+    return roundCurrency(data.positions.reduce(function(s, p) { return s + p.value; }, 0));
+  }
+
+  function totalWithCash() {
+    return roundCurrency(totalValue() + data.cash);
+  }
+
+  function getDrift(p) {
+    var total = totalWithCash();
+    if (total === 0 || !p.tier || p.tier < 1 || p.tier > 3) return 0;
+    return (p.value / total) * 100 - TIER[p.tier - 1].target;
+  }
+
+  function getDriftClass(d) {
+    if (Math.abs(d) >= 10) return 'drift-critical';
+    if (Math.abs(d) >= 5) return 'drift-warning';
+    return 'drift-normal';
+  }
+
+  function makeLog(type, symbol, name, action, adjShares, totalShares, price, fromTier, toTier) {
+    return {
+      id: Date.now(),
+      type: type,
+      symbol: symbol,
+      name: name,
+      action: action,
+      adjShares: adjShares,
+      totalShares: totalShares,
+      price: price,
+      fromTier: fromTier,
+      toTier: toTier,
+      time: new Date().toLocaleString()
+    };
+  }
+
+  function log(action) {
+    history.unshift(action);
+    if (history.length > 500) history = history.slice(0, 500);
+    saveHistory();
+  }
+
+  function autoRebalance() {
+    if (data.positions.length === 0) return;
+    var total = totalValue() + data.cash;
+    if (total <= 0) return;
+
+    var getTargetTier = function(percent) {
+      if (percent > 25) return 1;
+      if (percent > 15) return 2;
+      return 3;
+    };
+
+    var positions = data.positions.map(function(p) {
+      var percent = (p.value / total) * 100;
+      var targetTier = getTargetTier(percent);
+      var oldTier = p.tier >= 1 && p.tier <= 3 ? p.tier : targetTier;
+      return {
+        symbol: p.symbol,
+        p: p,
+        percent: percent,
+        targetTier: targetTier,
+        oldTier: oldTier,
+        oldInBuffer: p.inBuffer
+      };
+    });
+
+    positions.sort(function(a, b) { return b.percent - a.percent; });
+
+    var mainSlots = { 1: [], 2: [], 3: [] };
+    var bufferSlots = { 1: [], 2: [], 3: [] };
+
+    positions.forEach(function(pos) {
+      if (pos.oldInBuffer) {
+        bufferSlots[pos.oldTier].push(pos);
+      } else {
+        mainSlots[pos.oldTier].push(pos);
+      }
+    });
+
+    var fillMainFromBuffer = function(tier) {
+      while (mainSlots[tier].length < TIER[tier - 1].limit && bufferSlots[tier].length > 0) {
+        bufferSlots[tier].sort(function(a, b) { return b.percent - a.percent; });
+        var pos = bufferSlots[tier].shift();
+        pos.p.inBuffer = false;
+        mainSlots[tier].push(pos);
+      }
+    };
+
+    positions.forEach(function(pos) {
+      var target = pos.targetTier;
+      var old = pos.oldTier;
+
+      if (target === old) {
+        return;
+      }
+
+      if (target < old) {
+        if (mainSlots[target].length < TIER[target - 1].limit) {
+          mainSlots[old] = mainSlots[old].filter(function(p) { return p.symbol !== pos.symbol; });
+          pos.p.tier = target;
+          pos.p.inBuffer = false;
+          mainSlots[target].push(pos);
+          fillMainFromBuffer(old);
+        } else if (bufferSlots[target].length < TIER[target - 1].buffer) {
+          var canUseBuffer = true;
+          if (target === 2 && old === 3) {
+            if (mainSlots[1].length + mainSlots[2].length >= 3) {
+              canUseBuffer = false;
+            }
+          }
+          if (canUseBuffer) {
+            mainSlots[old] = mainSlots[old].filter(function(p) { return p.symbol !== pos.symbol; });
+            pos.p.tier = target;
+            pos.p.inBuffer = true;
+            bufferSlots[target].push(pos);
+            fillMainFromBuffer(target);
+          }
+        }
+      } else {
+        if (mainSlots[target].length < TIER[target - 1].limit) {
+          if (pos.oldInBuffer) {
+            bufferSlots[old] = bufferSlots[old].filter(function(p) { return p.symbol !== pos.symbol; });
+          } else {
+            mainSlots[old] = mainSlots[old].filter(function(p) { return p.symbol !== pos.symbol; });
+          }
+          pos.p.tier = target;
+          pos.p.inBuffer = false;
+          mainSlots[target].push(pos);
+          fillMainFromBuffer(old);
+        }
+      }
+    });
+
+    for (var tier = 1; tier <= 3; tier++) {
+      fillMainFromBuffer(tier);
+    }
+
+    saveData();
+  }
+
+  function render() {
+    var total = totalValue();
+    var totalCash = totalWithCash();
+
+    var html = '<div class="app">';
+
+    // Header
+    html += '<div class="header">';
+    html += '<h1>Portfolio</h1>';
+    html += '<div class="header-buttons">';
+    html += '<button class="btn btn-secondary" onclick="refreshPrices()">刷新价格</button>';
+    html += '<button class="btn btn-secondary" onclick="clearHistory()">清历史</button>';
+    html += '<button class="btn btn-secondary" onclick="toggleHistory()">历史</button>';
+    html += '<button class="btn btn-secondary" onclick="exportData()">导出</button>';
+    html += '<button class="btn btn-secondary" onclick="document.getElementById(\'importFile\').click()">导入</button>';
+    html += '<input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(this)">';
+    html += '</div></div>';
+
+    // Summary
+    html += '<div class="summary" style="justify-content:space-between">';
+    html += '<div style="display:flex;gap:24px;flex-wrap:wrap">';
+    html += '<div class="summary-item"><span class="summary-label">总市值</span><span class="summary-value">$' + roundCurrency(total).toLocaleString() + '</span></div>';
+    html += '<div class="summary-item"><span class="summary-label">现金</span><span class="summary-value" style="cursor:pointer" onclick="showCashModal()">$' + roundCurrency(data.cash).toLocaleString() + ' <span style="font-size:0.75rem;color:var(--text-secondary)">(' + (totalCash > 0 ? ((data.cash / totalCash) * 100).toFixed(1) : 0) + '%)</span></span></div>';
+    html += '<div class="summary-item"><span class="summary-label">合计</span><span class="summary-value">$' + roundCurrency(totalCash).toLocaleString() + '</span></div>';
+    html += '</div>';
+    if (data.priceTime) {
+      html += '<div class="summary-item"><span class="summary-label">刷新时间</span><span class="summary-value" style="font-size:0.75rem;color:var(--text-secondary)">' + data.priceTime + '</span></div>';
+    }
+    html += '</div>';
+
+    html += '<div style="margin-bottom:16px"><button class="btn btn-primary" onclick="showAddModal()">+ 建仓</button></div>';
+
+    // Tiers
+    html += '<div class="main-content">';
+    for (var t = 1; t <= 3; t++) {
+      html += '<div class="tier-card tier-' + t + '">';
+      html += '<div class="tier-header">';
+      html += '<span class="tier-title">' + TIER[t - 1].name + '</span>';
+      html += '<span>' + TIER[t - 1].target + '%</span>';
+      html += '</div>';
+      html += '<div class="tier-content">';
+
+      var tierPositions = data.positions.filter(function(p) { return p.tier === t && !p.inBuffer; });
+      var bufferPositions = data.positions.filter(function(p) { return p.tier === t && p.inBuffer; });
+      var limit = TIER[t - 1].limit;
+      var bufferLimit = TIER[t - 1].buffer;
+      var tierNeedsRebalance = tierPositions.some(function(p) { return Math.abs(getDrift(p)) > 5; });
+      var tierNeedsUpgrade = tierPositions.some(function(p) {
+        var percent = totalCash > 0 ? ((p.value / totalCash) * 100) : 0;
+        var upperLimit = getUpperLimit(t);
+        return percent > upperLimit;
+      });
+      if (tierNeedsRebalance || bufferPositions.length > 0 || tierNeedsUpgrade) {
+        var alerts = [];
+        if (tierNeedsRebalance) alerts.push('需要调整');
+        if (bufferPositions.length > 0) alerts.push('有' + bufferPositions.length + '个缓冲仓位');
+        if (tierNeedsUpgrade) alerts.push('有股票想晋级');
+        html += '<div style="padding:8px;background:rgba(248,81,73,0.1);border-radius:4px;margin-bottom:8px;font-size:0.75rem;color:var(--red)">' + alerts.join('，') + '</div>';
+      }
+
+      var renderPosition = function(p, isBuffer) {
+        var drift = getDrift(p);
+        var percent = totalCash > 0 ? ((p.value / totalCash) * 100).toFixed(1) : 0;
+        var priceChange = p.priceChange || 0;
+        var priceChangeClass = priceChange > 0 ? 'price-up' : priceChange < 0 ? 'price-down' : '';
+        var priceChangeStr = priceChange !== 0 ? (priceChange > 0 ? '+' : '') + priceChange.toFixed(2) : '';
+        var tierUpperLimit = t === 1 ? 35 : t === 2 ? 25 : 15;
+        var tierLowerLimit = t === 1 ? 25 : t === 2 ? 15 : 5;
+        var outOfTier = parseFloat(percent) > tierUpperLimit || parseFloat(percent) < tierLowerLimit;
+        var driftClass = outOfTier ? 'drift-critical' : (Math.abs(drift) > 2 ? 'drift-warning' : 'drift-normal');
+
+        html += '<div class="position-item' + (isBuffer ? ' position-buffer' : '') + '">';
+        html += '<div class="position-info">';
+        html += '<div class="position-code">' + p.symbol + ' ' + p.name + '</div>';
+        html += '<div class="position-name">' + p.shares + '股 · $' + p.value.toLocaleString() + '</div>';
+        html += '<div class="update-time">$' + p.price + ' <span class="' + priceChangeClass + '">' + priceChangeStr + '</span></div>';
+        html += '</div>';
+        html += '<div class="position-value">';
+        html += '<div class="drift ' + driftClass + '">' + percent + '% ' + (drift >= 0 ? '↑' : '↓') + Math.abs(drift).toFixed(1) + '%</div>';
+        if (Math.abs(drift) > 5) {
+          if (drift > 0 && p.tier > 1) {
+            var targetTier = Math.max(1, p.tier - 1);
+            html += '<div style="font-size:0.75rem;color:var(--blue)">建议升' + TIER[targetTier - 1].name + '</div>';
+          } else if (drift < 0 && p.tier < 3) {
+            var targetTier = Math.min(3, p.tier + 1);
+            html += '<div style="font-size:0.75rem;color:var(--blue)">建议降' + TIER[targetTier - 1].name + '</div>';
+          }
+        }
+        html += '</div>';
+        html += '<div class="position-actions">';
+        html += '<button class="btn-small" onclick="showAdjModal(\'' + p.symbol + '\',\'加仓\')" style="padding:4px 8px;font-size:0.625rem;border-radius:4px;border:none;cursor:pointer;font-family:inherit;background:var(--green);color:white">加仓</button>';
+        html += '<button class="btn-small btn-danger" onclick="showAdjModal(\'' + p.symbol + '\',\'减仓\')">减仓</button>';
+        if (t === 3) html += '<button class="btn-small btn-secondary" onclick="clearPos(\'' + p.symbol + '\')">清仓</button>';
+        html += '</div></div>';
+      };
+
+      tierPositions.forEach(function(p) { renderPosition(p, false); });
+
+      for (var i = tierPositions.length; i < limit; i++) {
+        html += '<div class="empty-slot">空位</div>';
+      }
+
+      if (bufferLimit > 0) {
+        html += '<div class="buffer-section"><div style="margin:12px 0 8px 0;border-top:1px dashed var(--border)"></div>';
+        html += '<div class="buffer-label">缓冲位 (' + bufferPositions.length + '/' + bufferLimit + ')</div>';
+        bufferPositions.forEach(function(p) { renderPosition(p, true); });
+        for (var j = bufferPositions.length; j < bufferLimit; j++) {
+          html += '<div class="empty-slot" style="opacity:0.5">缓冲</div>';
+        }
+        html += '</div>';
+      }
+
+      html += '</div></div>';
+    }
+    html += '</div>';
+
+    // History panel
+    html += '<div class="history-panel" id="historyPanel">';
+    html += '<div class="history-header" onclick="toggleHistory()">历史记录 (点击收起)</div>';
+    html += '<div class="history-content">';
+    if (history.length === 0) {
+      html += '<div style="color:var(--text-secondary);text-align:center;padding:16px">暂无记录</div>';
+    } else {
+      history.forEach(function(h) {
+        var typeColor;
+        if (h.action === '加仓' || h.action === '买入') {
+          typeColor = 'var(--green)';
+        } else if (h.action === '减仓' || h.action === '清仓') {
+          typeColor = 'var(--red)';
+        } else {
+          typeColor = 'var(--blue)';
+        }
+        var tierName = function(t) {
+          if (t === 0) return '-';
+          return TIER[t - 1] ? TIER[t - 1].name : '-';
+        };
+        html += '<div class="history-item">';
+        html += '<span style="color:' + typeColor + '">[' + h.action + ']</span> ';
+        html += h.symbol + ' ' + h.adjShares + '股 @ $' + h.price;
+        if (h.fromTier !== undefined && h.toTier !== undefined) {
+          if (h.toTier === 0 || h.action === '清仓') {
+            html += ' <span style="color:var(--red)">清仓</span>';
+          } else if (h.fromTier === 0) {
+            html += ' <span style="color:var(--green)">建仓 ' + tierName(h.toTier) + '</span>';
+          } else if (h.fromTier > h.toTier) {
+            html += ' <span style="color:var(--green)">晋级 ' + tierName(h.toTier) + '</span>';
+          } else if (h.fromTier < h.toTier) {
+            html += ' <span style="color:var(--red)">降级 ' + tierName(h.toTier) + '</span>';
+          } else {
+            html += ' <span style="color:var(--text-secondary)">' + tierName(h.fromTier) + '</span>';
+          }
+        }
+        html += '<div class="history-time">' + h.time + '</div>';
+        html += '</div>';
+      });
+    }
+    html += '</div></div>';
+
+    // Add Modal
+    html += '<div class="modal-overlay" id="addModal" style="display:none" onclick="closeAddModal()">';
+    html += '<div class="modal" onclick="event.stopPropagation()">';
+    html += '<div class="modal-header">';
+    html += '<span>建仓</span>';
+    html += '<button class="modal-close" onclick="closeAddModal()">×</button>';
+    html += '</div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-group"><label class="form-label">股票代码 *</label>';
+    html += '<input class="form-input" id="addSymbol" placeholder="AAPL" onchange="fetchQuote()"></div>';
+    html += '<div class="form-group"><label class="form-label">名称</label>';
+    html += '<div class="form-input" id="addName" style="background:var(--bg-tertiary);padding:8px;border-radius:6px;color:var(--text-secondary)">输入代码后自动获取</div></div>';
+    html += '<div class="form-group"><label class="form-label">当前价格</label>';
+    html += '<div class="form-input" id="addPriceDisplay" style="background:var(--bg-tertiary);padding:8px;border-radius:6px;color:var(--text-secondary)">-</div></div>';
+    html += '<div class="form-group"><label class="form-label">股数 *</label>';
+    html += '<div style="display:flex;align-items:center">';
+    html += '<input class="form-input" type="number" id="addShares" placeholder="100" oninput="updateAddCost()" style="border-radius:6px 0 0 6px">';
+    html += '<button onclick="resetRecommendShares()" style="padding:8px 12px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px">↻</button>';
+    html += '<button onclick="setAddMinShares()" style="padding:8px 8px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px">min</button>';
+    html += '<button onclick="setAddMaxShares()" style="padding:8px 8px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px;border-radius:0 6px 6px 0">max</button>';
+    html += '</div></div>';
+    html += '<div class="form-group"><label class="form-label">需支付</label>';
+    html += '<div class="form-input" id="addCostDisplay" style="background:var(--bg-tertiary);padding:8px;border-radius:6px;color:var(--green)">$0 <span id="addCostPercent" style="color:var(--text-secondary);font-size:0.75rem">(0%)</span></div></div>';
+    html += '<div class="form-group" id="addWarning" style="display:none"><label class="form-label"></label>';
+    html += '<div class="form-input" style="background:transparent;border-color:var(--red);color:var(--red);padding:8px;border-radius:6px" id="addWarningText"></div></div>';
+    html += '<div style="padding:16px 0 0 0;border-top:1px solid #30363d;margin-top:16px;display:flex;gap:8px">';
+    html += '<button id="addBtn" onclick="confirmAdd()" style="flex:1;padding:10px 16px;background:#58a6ff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">确认</button>';
+    html += '<button onclick="closeAddModal()" style="flex:1;padding:10px 16px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;cursor:pointer;font-size:14px">取消</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Adj Modal
+    html += '<div class="modal-overlay" id="adjModal" style="display:none" onclick="closeAdjModal()">';
+    html += '<div class="modal" onclick="event.stopPropagation()">';
+    html += '<div class="modal-header">';
+    html += '<span id="adjTitle">调整持仓</span>';
+    html += '<button class="modal-close" onclick="closeAdjModal()">×</button>';
+    html += '</div>';
+    html += '<div class="modal-body">';
+    html += '<div id="adjInfo" style="margin-bottom:12px;color:var(--text-secondary)"></div>';
+    html += '<div id="adjTarget" style="margin-bottom:12px;color:var(--blue)"></div>';
+    html += '<div class="form-group"><label class="form-label">操作股数 *</label>';
+    html += '<div style="display:flex;align-items:center">';
+    html += '<input class="form-input" type="number" id="adjShares" placeholder="输入股数" oninput="updateAdjCost()" style="border-radius:6px 0 0 6px;flex:1">';
+    html += '<button id="adjNextTargetBtn" onclick="setAdjToNextTarget()" style="padding:8px 8px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px"></button>';
+    html += '<button onclick="setAdjToTarget()" style="padding:8px 8px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px">=</button>';
+    html += '<button id="adjCurrLimitBtn" onclick="setAdjToCurrLimit()" style="padding:8px 8px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px"></button>';
+    html += '<button id="adjNextLimitBtn" onclick="setAdjToNextLimit()" style="padding:8px 8px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-left:none;cursor:pointer;font-size:12px;border-radius:0 6px 6px 0"></button>';
+    html += '</div></div>';
+    html += '<div class="form-group"><label class="form-label">需支付</label>';
+    html += '<div class="form-input" id="adjCostDisplay" style="background:var(--bg-tertiary);padding:8px;border-radius:6px;color:var(--green)">$0 <span style="color:var(--text-secondary);font-size:0.75rem">(0%)</span></div></div>';
+    html += '<div class="form-group"><label class="form-label">交易后仓位</label>';
+    html += '<div id="adjResultDisplay" style="padding:8px;background:rgba(88,166,255,0.1);border-radius:6px;color:var(--blue);text-align:center">0%</div></div>';
+    html += '<div class="form-group" id="adjWarning" style="display:none"><label class="form-label"></label>';
+    html += '<div class="form-input" style="background:transparent;border-color:var(--red);color:var(--red);padding:8px;border-radius:6px" id="adjWarningText"></div></div>';
+    html += '<div style="padding:16px 0 0 0;border-top:1px solid #30363d;margin-top:16px;display:flex;gap:8px">';
+    html += '<button onclick="confirmAdj()" style="flex:1;padding:10px 16px;background:#58a6ff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">确认</button>';
+    html += '<button onclick="closeAdjModal()" style="flex:1;padding:10px 16px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;cursor:pointer;font-size:14px">取消</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Init Modal
+    html += '<div class="modal-overlay" id="initModal" style="display:' + (showInit ? 'flex' : 'none') + '">';
+    html += '<div class="modal" onclick="event.stopPropagation()">';
+    html += '<div class="modal-header"><span>初始化资金</span></div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-group"><label class="form-label">初始资金 (美元) *</label>';
+    html += '<input class="form-input" type="number" id="initCash" placeholder="100000"></div>';
+    html += '<div style="padding:16px 0 0 0;border-top:1px solid #30363d;margin-top:16px">';
+    html += '<button onclick="confirmInit()" style="width:100%;padding:10px 16px;background:#58a6ff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">确认</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Cash Modal
+    html += '<div class="modal-overlay" id="cashModal" style="display:none" onclick="closeCashModal()">';
+    html += '<div class="modal" onclick="event.stopPropagation()">';
+    html += '<div class="modal-header">';
+    html += '<span>修改现金</span>';
+    html += '<button class="modal-close" onclick="closeCashModal()">×</button>';
+    html += '</div>';
+    html += '<div class="modal-body">';
+    html += '<div class="form-group"><label class="form-label">现金 (美元)</label>';
+    html += '<input class="form-input" type="number" id="cashInput" placeholder="100000"></div>';
+    html += '<div style="padding:16px 0 0 0;border-top:1px solid #30363d;margin-top:16px;display:flex;gap:8px">';
+    html += '<button onclick="confirmCash()" style="flex:1;padding:10px 16px;background:#58a6ff;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px">确认</button>';
+    html += '<button onclick="closeCashModal()" style="flex:1;padding:10px 16px;background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;cursor:pointer;font-size:14px">取消</button>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    document.getElementById('root').innerHTML = html;
+  }
+
+  // Global functions
+  window.addFetchedData = { name: '', price: 0 };
+
+  window.showCashModal = function() {
+    document.getElementById('cashInput').value = data.cash;
+    document.getElementById('cashModal').style.display = 'flex';
+  };
+
+  window.closeCashModal = function() {
+    document.getElementById('cashModal').style.display = 'none';
+  };
+
+  window.confirmCash = function() {
+    var cash = roundCurrency(parseFloat(document.getElementById('cashInput').value) || 0);
+    data.cash = cash;
+    saveData();
+    closeCashModal();
+    render();
+  };
+
+  window.showAddModal = function() {
+    document.getElementById('addSymbol').value = '';
+    document.getElementById('addName').textContent = '输入代码后自动获取';
+    document.getElementById('addName').style.color = 'var(--text-secondary)';
+    document.getElementById('addPriceDisplay').textContent = '-';
+    document.getElementById('addPriceDisplay').style.color = 'var(--text-secondary)';
+    document.getElementById('addShares').value = '';
+    document.getElementById('addCostDisplay').innerHTML = '$0 <span style="color:var(--text-secondary);font-size:0.75rem">(0%)</span>';
+    document.getElementById('addCostDisplay').style.color = 'var(--green)';
+    document.getElementById('addWarning').style.display = 'none';
+    window.addFetchedData = { name: '', price: 0 };
+    window.addRecommendFilled = false;
+    document.getElementById('addModal').style.display = 'flex';
+  };
+
+  window.closeAddModal = function() {
+    document.getElementById('addModal').style.display = 'none';
+  };
+
+  window.resetRecommendShares = function() {
+    if (window.addFetchedData.price <= 0) return;
+    var price = window.addFetchedData.price;
+    var totalWithCash = totalValue() + data.cash;
+    var tier3Count = data.positions.filter(function(p) { return p.tier === 3; }).length;
+    var tier3Slots = TIER[2].limit - tier3Count;
+    if (tier3Slots <= 0) return;
+    var targetValue = totalWithCash * 0.1;
+    var maxValue = totalWithCash * 0.15;
+    var recommendShares = Math.floor(Math.min(targetValue, maxValue) / price);
+    document.getElementById('addShares').value = Math.max(recommendShares, 10);
+    updateAddCost();
+  };
+
+  window.setAddMinShares = function() {
+    if (window.addFetchedData.price <= 0) return;
+    var price = window.addFetchedData.price;
+    var total = totalValue() + data.cash;
+    var targetPercent = 5 + 0.1;
+    var targetValue = total * (targetPercent / 100);
+    var maxByCash = Math.floor(data.cash / price);
+    var shares = Math.min(maxByCash, Math.floor(targetValue / price));
+    document.getElementById('addShares').value = Math.max(shares, 10);
+    updateAddCost();
+  };
+
+  window.setAddMaxShares = function() {
+    if (window.addFetchedData.price <= 0) return;
+    var price = window.addFetchedData.price;
+    var total = totalValue() + data.cash;
+    var targetPercent = 15 - 0.1;
+    var targetValue = total * (targetPercent / 100);
+    var maxByTier = Math.floor(targetValue / price);
+    var maxByCash = Math.floor(data.cash / price);
+    var maxShares = Math.min(maxByCash, maxByTier);
+    document.getElementById('addShares').value = maxShares;
+    updateAddCost();
+  };
+
+  window.showToast = function(msg, type) {
+    var toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast ' + (type || '');
+    toast.classList.add('show');
+    setTimeout(function() { toast.classList.remove('show'); }, 2000);
+  };
+
+  window.fillRecommendShares = function() {
+    if (window.addRecommendFilled) return;
+    var price = window.addFetchedData.price || 0;
+    if (price <= 0) return;
+    var totalWithCash = totalValue() + data.cash;
+    var tier3Count = data.positions.filter(function(p) { return p.tier === 3; }).length;
+    var tier3Slots = TIER[2].limit - tier3Count;
+    if (tier3Slots <= 0) return;
+    var targetValue = totalWithCash * 0.1;
+    var maxValue = totalWithCash * 0.15;
+    var recommendShares = Math.floor(Math.min(targetValue, maxValue) / price);
+    Math.max(recommendShares, 10)
+    document.getElementById('addShares').value = recommendShares;
+    window.addRecommendFilled = true;
+    updateAddCost();
+  };
+
+  window.updateAddCost = function() {
+    var price = window.addFetchedData.price || 0;
+    var totalWithCash = totalValue() + data.cash;
+    var tier3Count = data.positions.filter(function(p) { return p.tier === 3; }).length;
+    var tier3Slots = TIER[2].limit - tier3Count;
+
+    var shares = parseInt(document.getElementById('addShares').value) || 0;
+    var cost = shares * price;
+    var cash = data.cash;
+    var canAfford = cost <= cash;
+    var costDisplay = document.getElementById('addCostDisplay');
+    var costPercent = totalWithCash > 0 ? ((cost / totalWithCash) * 100).toFixed(1) : 0;
+    costDisplay.innerHTML = '$' + cost.toLocaleString() + ' <span style="color:var(--text-secondary);font-size:0.75rem">(' + costPercent + '%)</span>';
+    costDisplay.style.color = canAfford ? 'var(--green)' : 'var(--red)';
+
+    var warningEl = document.getElementById('addWarning');
+    var warningText = document.getElementById('addWarningText');
+    if (tier3Slots <= 0) {
+      warningText.textContent = '第三梯队已满';
+      warningEl.style.display = 'block';
+    } else if (shares > 0) {
+      var newPercent = (cost / totalWithCash) * 100;
+      if (newPercent > 15) {
+        warningText.textContent = '单笔超过15%将跳级，建议分批建仓';
+        warningEl.style.display = 'block';
+      } else if (cost > cash) {
+        warningText.textContent = '资金不足';
+        warningEl.style.display = 'block';
+      } else {
+        warningEl.style.display = 'none';
+      }
+    } else {
+      warningEl.style.display = 'none';
+    }
+  };
+
+  window.fetchQuote = function() {
+    var symbol = document.getElementById('addSymbol').value.trim().toUpperCase();
+    if (!symbol) return;
+
+    document.getElementById('addName').textContent = '获取中...';
+    document.getElementById('addPriceDisplay').textContent = '获取中...';
+
+    var url = 'https://qt.gtimg.cn/q=us' + symbol;
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        try {
+          var response = xhr.responseText;
+          var fields = response.split('~');
+          if (fields.length > 10) {
+            var name = fields[1];
+            var price = parseFloat(fields[3]);
+            if (price > 0) {
+              window.addFetchedData = { name: name, price: price };
+              document.getElementById('addName').textContent = name;
+              document.getElementById('addName').style.color = 'var(--text-primary)';
+              document.getElementById('addPriceDisplay').textContent = '$' + price;
+              document.getElementById('addPriceDisplay').style.color = 'var(--text-primary)';
+
+              if (!window.addRecommendFilled) {
+                var totalWithCash = totalValue() + data.cash;
+                var tier3Count = data.positions.filter(function(p) { return p.tier === 3; }).length;
+                var tier3Slots = TIER[2].limit - tier3Count;
+                if (tier3Slots > 0) {
+                  var targetValue = totalWithCash * 0.1;
+                  var maxValue = totalWithCash * 0.15;
+                  var recommendShares = Math.floor(Math.min(targetValue, maxValue) / price);
+                  Math.max(recommendShares, 10)
+                  document.getElementById('addShares').value = recommendShares;
+                  window.addRecommendFilled = true;
+                }
+              }
+
+              updateAddCost();
+              return;
+            }
+          }
+          document.getElementById('addName').textContent = '未找到';
+          document.getElementById('addPriceDisplay').textContent = '-';
+          window.addFetchedData = { name: '', price: 0 };
+          updateAddCost();
+        } catch (e) {
+          document.getElementById('addName').textContent = '获取失败';
+          document.getElementById('addPriceDisplay').textContent = '-';
+          window.addFetchedData = { name: '', price: 0 };
+        }
+      }
+    };
+    xhr.send();
+  };
+
+  window.confirmAdd = function() {
+    var symbol = document.getElementById('addSymbol').value.trim().toUpperCase();
+    var fetched = window.addFetchedData;
+    var name = fetched.name || symbol;
+    var price = fetched.price;
+    var shares = parseInt(document.getElementById('addShares').value) || 0;
+    var cost = shares * price;
+    var totalWithCash = totalValue() + data.cash;
+    var existing = data.positions.find(function(p) { return p.symbol === symbol; });
+
+    if (!symbol || shares <= 0 || price <= 0) {
+      showToast('请填写必填项');
+      return;
+    }
+    if (cost > data.cash) {
+      showToast('资金不足');
+      return;
+    }
+    if (!existing) {
+      var newPercent = (cost / totalWithCash) * 100;
+      if (newPercent > 15) {
+        showToast('单笔超过15%将跳级，请减少股数');
+        return;
+      }
+      var tier3MainCount = data.positions.filter(function(p) { return p.tier === 3 && !p.inBuffer; }).length;
+      if (tier3MainCount >= 3) {
+        showToast('第三梯队已满');
+        return;
+      }
+    }
+    if (existing) {
+      var newValue = existing.value + cost;
+      var newPercent = (newValue / totalWithCash) * 100;
+      if (existing.tier === 3 && newPercent > 15) {
+        showToast('持仓超过15%将跳级，请减少股数');
+        return;
+      }
+      var ns = existing.shares + shares;
+      var nc = existing.shares * existing.avgCost + cost;
+      data.positions = data.positions.map(function(p) {
+        if (p.symbol === symbol) {
+          return Object.assign({}, p, {
+            shares: ns,
+            avgCost: nc / ns,
+            price: price,
+            value: roundCurrency(ns * price)
+          });
+        }
+        return p;
+      });
+    } else {
+      data.positions.push({
+        symbol: symbol,
+        name: name || symbol,
+        shares: shares,
+        avgCost: price,
+        price: price,
+        value: roundCurrency(cost),
+        tier: 3,
+        priceChange: 0,
+        inBuffer: false
+      });
+    }
+
+    data.cash = roundCurrency(data.cash - cost);
+    log(makeLog('buy', symbol, name || symbol, '买入', shares, shares, price, 0, 3));
+    saveData();
+    autoRebalance();
+    closeAddModal();
+    render();
+  };
+
+  window.adjTarget = null;
+  window.adjType = '';
+
+  window.showAdjModal = function(symbol, type) {
+    var pos = data.positions.find(function(p) { return p.symbol === symbol; });
+    if (!pos) return;
+    window.adjTarget = pos;
+    window.adjType = type;
+    window.adjRecommendFilled = false;
+    var isAdd = type === '加仓';
+    var newTier = isAdd ? pos.tier - 1 : pos.tier + 1;
+    document.getElementById('adjTitle').textContent = type + ' ' + symbol;
+    document.getElementById('adjInfo').textContent = '当前: ' + pos.shares + '股 $' + pos.value.toLocaleString();
+    var targetText = '';
+    if (isAdd && newTier >= 1 && newTier <= 3) {
+      var upperLimit = getUpperLimit(newTier);
+      targetText = '上限' + upperLimit + '%';
+    } else if (!isAdd && newTier >= 1 && newTier <= 3) {
+      targetText = TIER[newTier - 1].name + ' (' + TIER[newTier - 1].target + '%)';
+    } else {
+      targetText = '已无可用梯队';
+    }
+    document.getElementById('adjTarget').textContent = '目标: ' + targetText;
+
+    var total = totalValue() + data.cash;
+    var targetValue;
+    if (isAdd && newTier >= 1 && newTier <= 3) {
+      targetValue = total * (getUpperLimit(newTier) / 100);
+    } else if (!isAdd && newTier >= 1 && newTier <= 3) {
+      targetValue = total * (TIER[newTier - 1].target / 100);
+    } else {
+      targetValue = 0;
+    }
+
+    if (isAdd) {
+      setAdjToTarget();
+    } else {
+      setAdjToNextTarget();
+    }
+    document.getElementById('adjCostDisplay').innerHTML = '$0 <span style="color:var(--text-secondary);font-size:0.75rem">(0%)</span>';
+    document.getElementById('adjCostDisplay').style.color = 'var(--green)';
+    document.getElementById('adjResultDisplay').textContent = '0%';
+    document.getElementById('adjResultDisplay').style.color = 'var(--text-primary)';
+    document.getElementById('adjWarning').style.display = 'none';
+
+    var nextTier = isAdd ? pos.tier - 1 : pos.tier + 1;
+    var hasNextTier = nextTier >= 1 && nextTier <= 3;
+
+    document.getElementById('adjNextTargetBtn').textContent = isAdd ? '↑' : '↓';
+    document.getElementById('adjNextTargetBtn').style.display = hasNextTier ? 'block' : 'none';
+    document.getElementById('adjNextLimitBtn').style.display = hasNextTier ? 'block' : 'none';
+
+    document.getElementById('adjCurrLimitBtn').style.display = 'block';
+
+    if (isAdd) {
+      document.getElementById('adjCurrLimitBtn').textContent = 'max' + pos.tier;
+      if (pos.tier > 1) {
+        document.getElementById('adjNextLimitBtn').textContent = 'max' + (pos.tier - 1);
+      }
+    } else {
+      document.getElementById('adjCurrLimitBtn').textContent = 'min' + pos.tier;
+      if (pos.tier < 3) {
+        document.getElementById('adjNextLimitBtn').textContent = 'min' + (pos.tier + 1);
+      }
+    }
+
+    document.getElementById('adjModal').style.display = 'flex';
+    updateAdjCost();
+  };
+
+  window.setAdjToTarget = function() {
+    var pos = window.adjTarget;
+    if (!pos) return;
+    var isAdd = window.adjType === '加仓';
+    var price = pos.price;
+    var total = totalValue() + data.cash;
+    var currentPercent = (pos.value / total) * 100;
+    var targetPercent = TIER[pos.tier - 1].target;
+    var shares = 0;
+    
+    if (isAdd) {
+      if (currentPercent < targetPercent) {
+        var targetValue = total * (targetPercent / 100);
+        var neededValue = targetValue - pos.value;
+        shares = Math.floor(neededValue / price);
+      }
+    } else {
+      if (currentPercent > targetPercent) {
+        var targetValue = total * (targetPercent / 100);
+        var reduceValue = pos.value - targetValue;
+        shares = Math.floor(reduceValue / price);
+      }
+      if (shares <= 0) shares = Math.floor(pos.value * 0.5 / price);
+    }
+    
+    document.getElementById('adjShares').value = shares;
+    updateAdjCost();
+  };
+
+  window.setAdjToCurrLimit = function() {
+    var pos = window.adjTarget;
+    if (!pos) return;
+    var isAdd = window.adjType === '加仓';
+    var price = pos.price;
+    var total = totalValue() + data.cash;
+    var upperLimit = getUpperLimit(pos.tier);
+    var lowerLimit = TIER[pos.tier - 1].min;
+    var limit = isAdd ? (upperLimit - 0.01) : (lowerLimit + 0.01);
+    var targetValue = total * (limit / 100);
+    var neededValue = isAdd ? (targetValue - pos.value) : (pos.value - targetValue);
+    var maxByCash = isAdd ? Math.floor(data.cash / price) : Infinity;
+    var neededShares = Math.floor(Math.abs(neededValue) / price);
+    var shares = isAdd ? Math.min(maxByCash, Math.max(0, neededShares)) : neededShares;
+    if (shares <= 0) shares = Math.floor(pos.value * 0.5 / price);
+    
+    document.getElementById('adjShares').value = shares;
+    updateAdjCost();
+  };
+
+  window.setAdjToNextTarget = function() {
+    var pos = window.adjTarget;
+    if (!pos) return;
+    var isAdd = window.adjType === '加仓';
+    var nextTier = isAdd ? pos.tier - 1 : pos.tier + 1;
+    if (nextTier < 1 || nextTier > 3) return;
+    var price = pos.price;
+    var total = totalValue() + data.cash;
+    var targetValue = total * (TIER[nextTier - 1].target / 100);
+    var neededValue = isAdd ? (targetValue - pos.value) : (pos.value - targetValue);
+    var maxByCash = isAdd ? Math.floor(data.cash / price) : Infinity;
+    var neededShares = Math.floor(Math.abs(neededValue) / price);
+    var shares = isAdd ? Math.min(maxByCash, Math.max(0, neededShares)) : neededShares;
+    if (shares <= 0) shares = Math.floor(pos.value * 0.5 / price);
+    
+    document.getElementById('adjShares').value = shares;
+    updateAdjCost();
+  };
+
+  window.setAdjToNextLimit = function() {
+    var pos = window.adjTarget;
+    if (!pos) return;
+    var isAdd = window.adjType === '加仓';
+    var nextTier = isAdd ? pos.tier - 1 : pos.tier + 1;
+    if (nextTier < 1 || nextTier > 3) return;
+    var price = pos.price;
+    var total = totalValue() + data.cash;
+    var upperLimit = getUpperLimit(nextTier);
+    var lowerLimit = TIER[nextTier - 1].min;
+    var limit = isAdd ? (upperLimit - 0.01) : (lowerLimit + 0.01);
+    var targetValue = total * (limit / 100);
+    var neededValue = isAdd ? (targetValue - pos.value) : (pos.value - targetValue);
+    var maxByCash = isAdd ? Math.floor(data.cash / price) : Infinity;
+    var neededShares = Math.floor(Math.abs(neededValue) / price);
+    var shares = isAdd ? Math.min(maxByCash, Math.max(0, neededShares)) : neededShares;
+    if (shares <= 0) shares = Math.floor(pos.value * 0.5 / price);
+    
+    document.getElementById('adjShares').value = shares;
+    updateAdjCost();
+  };
+
+  window.closeAdjModal = function() {
+    document.getElementById('adjModal').style.display = 'none';
+  };
+
+  window.updateAdjCost = function() {
+    var pos = window.adjTarget;
+    if (!pos) return;
+    var isAdd = window.adjType === '加仓';
+    var newTier = isAdd ? pos.tier - 1 : pos.tier + 1;
+    var price = pos.price;
+    var total = totalValue() + data.cash;
+    var currentValue = pos.value;
+
+    var tierLimit, tierCount, targetValue;
+    if (newTier >= 1 && newTier <= 3) {
+      targetValue = total * (TIER[newTier - 1].target / 100);
+      tierLimit = TIER[newTier - 1].limit;
+      tierCount = data.positions.filter(function(p) { return p.tier === newTier; }).length;
+    } else {
+      targetValue = 0;
+      tierLimit = 0;
+      tierCount = 0;
+    }
+
+    var shares = parseInt(document.getElementById('adjShares').value) || 0;
+    if (isAdd && shares > 0 && shares * price > data.cash) {
+      var maxShares = Math.floor(data.cash / price);
+      if (maxShares > 0 && maxShares < shares) {
+        shares = maxShares;
+        document.getElementById('adjShares').value = shares;
+      }
+    }
+    var cost = shares * price;
+    var canAfford = isAdd ? cost <= data.cash : true;
+    var costDisplay = document.getElementById('adjCostDisplay');
+    var costPercent = total > 0 ? ((cost / total) * 100).toFixed(1) : 0;
+    costDisplay.innerHTML = '$' + cost.toLocaleString() + ' <span style="color:var(--text-secondary);font-size:0.75rem">(' + costPercent + '%)</span>';
+    costDisplay.style.color = canAfford ? 'var(--green)' : 'var(--red)';
+
+    var resultDisplay = document.getElementById('adjResultDisplay');
+    var newValue = isAdd ? currentValue + cost : currentValue - cost;
+    var newPercent = total > 0 ? ((newValue / total) * 100).toFixed(1) : 0;
+    resultDisplay.textContent = newPercent + '%';
+    var currentPercent = total > 0 ? ((currentValue / total) * 100).toFixed(1) : 0;
+    if (newValue > currentValue) {
+      resultDisplay.style.color = 'var(--green)';
+    } else {
+      resultDisplay.style.color = 'var(--red)';
+    }
+
+    var warningEl = document.getElementById('adjWarning');
+    var warningText = document.getElementById('adjWarningText');
+    if (shares > 0) {
+      if (isAdd && newTier >= 1 && newTier <= 3) {
+        var upperLimit = getUpperLimit(newTier);
+        if (newPercent > upperLimit) {
+          warningText.textContent = '超出上限' + upperLimit + '%';
+          warningEl.style.display = 'block';
+        } else if (newPercent > TIER[newTier - 1].target + 5) {
+          warningText.textContent = '仓位将超过目标，建议减少股数';
+          warningEl.style.display = 'block';
+        } else if (!canAfford) {
+          warningText.textContent = '资金不足';
+          warningEl.style.display = 'block';
+        } else if (entersTier(newPercent, newTier)) {
+          var mainCount = data.positions.filter(function(p) { return p.tier === newTier && !p.inBuffer; }).length;
+          var bufferCount = data.positions.filter(function(p) { return p.tier === newTier && p.inBuffer; }).length;
+          var canUpgrade = mainCount < tierLimit || (newTier === 2 && pos.tier === 3 && data.positions.filter(function(p) { return (p.tier === 1 || p.tier === 2) && !p.inBuffer; }).length < 3);
+          if (!canUpgrade) {
+            warningText.textContent = '目标梯队已满';
+            warningEl.style.display = 'block';
+          } else {
+            warningEl.style.display = 'none';
+          }
+        } else {
+          warningEl.style.display = 'none';
+        }
+      } else if (!isAdd && newTier >= 1 && newTier <= 3 && newPercent < TIER[newTier - 1].target - 5) {
+        warningText.textContent = '仓位将低于目标，建议减少股数';
+        warningEl.style.display = 'block';
+      } else {
+        warningEl.style.display = 'none';
+      }
+    } else {
+      warningEl.style.display = 'none';
+    }
+  };
+
+  window.confirmAdj = function() {
+    var shares = parseInt(document.getElementById('adjShares').value) || 0;
+    var pos = window.adjTarget;
+    if (!pos || shares <= 0) return;
+
+    var isAdd = window.adjType === '加仓';
+    var newTier = isAdd ? pos.tier - 1 : pos.tier + 1;
+    var cost = shares * pos.price;
+    var total = totalValue() + data.cash;
+
+    if (isAdd) {
+      if (cost > data.cash) {
+        var maxShares = Math.floor(data.cash / pos.price);
+        if (maxShares <= 0) {
+          showToast('资金不足');
+          return;
+        }
+        if (maxShares < shares) {
+          shares = maxShares;
+          cost = shares * pos.price;
+          showToast('已调整为最大可买股数: ' + shares);
+          document.getElementById('adjShares').value = shares;
+          updateAdjCost();
+        }
+      }
+      var newValue = pos.value + cost;
+      var newPercent = (newValue / total) * 100;
+      var upperLimit = getUpperLimit(newTier);
+      if (newPercent > upperLimit) {
+        showToast('超出上限' + upperLimit + '%');
+        return;
+      }
+      if (entersTier(newPercent, newTier)) {
+        var mainCount = data.positions.filter(function(p) { return p.tier === newTier && !p.inBuffer; }).length;
+        var bufferCount = data.positions.filter(function(p) { return p.tier === newTier && p.inBuffer; }).length;
+        if (mainCount >= TIER[newTier - 1].limit) {
+          if (bufferCount < TIER[newTier - 1].buffer) {
+            if (newTier === 2 && pos.tier === 3) {
+              var t1t2Main = data.positions.filter(function(p) { return (p.tier === 1 || p.tier === 2) && !p.inBuffer; }).length;
+              if (t1t2Main >= 3) {
+                showToast('目标梯队已满');
+                return;
+              }
+            }
+          } else {
+            showToast('目标梯队已满');
+            return;
+          }
+        }
+      }
+      var ns = pos.shares + shares;
+      var nc = pos.shares * pos.avgCost + cost;
+      var targetMainCount = data.positions.filter(function(p) { return p.tier === newTier && !p.inBuffer; }).length;
+      var willEnterTarget = entersTier(newPercent, newTier);
+      var shouldUpgrade = willEnterTarget && targetMainCount < TIER[newTier - 1].limit;
+      var finalTier = shouldUpgrade ? newTier : pos.tier;
+      var willBeBuffer = willEnterTarget && targetMainCount >= TIER[newTier - 1].limit && finalTier === newTier;
+      data.positions = data.positions.map(function(p) {
+        if (p.symbol === pos.symbol) {
+          return Object.assign({}, p, { shares: ns, avgCost: roundCurrency(nc / ns), price: pos.price, value: roundCurrency(ns * pos.price), tier: finalTier, inBuffer: willBeBuffer });
+        }
+        return p;
+      });
+      data.cash = roundCurrency(data.cash - cost);
+      log(makeLog('adj', pos.symbol, pos.name, '加仓', shares, ns, pos.price, pos.tier, finalTier));
+    } else {
+      var ns = pos.shares - shares;
+      if (ns <= 0) {
+        data.positions = data.positions.filter(function(p) { return p.symbol !== pos.symbol; });
+        data.cash += pos.value;
+        log(makeLog('sell', pos.symbol, pos.name, '清仓', shares, 0, pos.price, pos.tier, 0));
+      } else {
+        var newValue = pos.value - cost;
+        var newTotalWithCash = total - cost;
+        var newPercent = (newValue / newTotalWithCash) * 100;
+        
+        var willEnterBuffer = newTier >= 1 && newTier <= 3 ? entersTier(newPercent, newTier) : false;
+        if (willEnterBuffer) {
+          var mainCount = data.positions.filter(function(p) { return p.tier === newTier && !p.inBuffer; }).length;
+          var bufferCount = data.positions.filter(function(p) { return p.tier === newTier && p.inBuffer; }).length;
+          if (mainCount >= TIER[newTier - 1].limit && bufferCount >= TIER[newTier - 1].buffer) {
+            showToast('目标梯队已满');
+            return;
+          }
+        }
+        
+        var willBeDowngraded = willEnterBuffer || (newTier === pos.tier && pos.inBuffer);
+        var finalTier = newTier >= 1 && newTier <= 3 ? newTier : pos.tier;
+        data.positions = data.positions.map(function(p) {
+          if (p.symbol === pos.symbol) {
+            return Object.assign({}, p, { shares: ns, value: roundCurrency(ns * p.price), tier: finalTier, inBuffer: willBeDowngraded });
+          }
+          return p;
+        });
+        data.cash = roundCurrency(data.cash + cost);
+        log(makeLog('adj', pos.symbol, pos.name, '减仓', shares, ns, pos.price, pos.tier, finalTier));
+      }
+    }
+
+    saveData();
+    autoRebalance();
+    closeAdjModal();
+    render();
+  };
+
+  window.clearPos = function(symbol) {
+    var pos = data.positions.find(function(p) { return p.symbol === symbol; });
+    if (!pos) return;
+    if (!confirm('确认清仓 ' + pos.symbol + '?')) return;
+    data.positions = data.positions.filter(function(p) { return p.symbol !== symbol; });
+    data.cash = roundCurrency(data.cash + pos.value);
+    log(makeLog('clear', pos.symbol, pos.name, '清仓', pos.shares, 0, pos.price, pos.tier, 0));
+    saveData();
+    render();
+  };
+
+  window.clearHistory = function() {
+    if (!confirm('确认清空历史?')) return;
+    history = [];
+    saveHistory();
+    render();
+  };
+
+  window.toggleHistory = function() {
+    var panel = document.getElementById('historyPanel');
+    if (panel) {
+      panel.classList.toggle('show');
+    }
+  };
+
+  window.exportData = function() {
+    var blob = new Blob([JSON.stringify({ version: 1, data: data, history: history }, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'portfolio.json';
+    a.click();
+  };
+
+  window.importData = function(input) {
+    var file = input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var d = JSON.parse(e.target.result);
+        if (d.data && d.version === 1) {
+          data = d.data;
+          history = d.history || [];
+          saveData();
+          saveHistory();
+          render();
+        } else {
+          showToast('无效文件格式');
+        }
+      } catch (err) {
+        showToast('解析文件失败');
+      }
+    };
+    reader.readAsText(file);
+    input.value = '';
+  };
+
+  window.confirmInit = function() {
+    var cash = parseFloat(document.getElementById('initCash').value) || 0;
+    if (cash > 0) {
+      data = { positions: [], cash: cash };
+      saveData();
+      showInit = false;
+      render();
+    }
+  };
+
+  window.refreshPrices = function() {
+    if (data.positions.length === 0) {
+      showToast('暂无持仓');
+      return;
+    }
+
+    var symbols = data.positions.map(function(p) { return 'us' + p.symbol; }).join(',');
+    var url = 'https://qt.gtimg.cn/q=' + symbols;
+
+    var btn = document.querySelector('button[onclick="refreshPrices()"]');
+    if (btn) btn.textContent = '刷新中...';
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4) {
+        if (btn) btn.textContent = '刷新价格';
+        if (xhr.status === 200) {
+          try {
+            var response = xhr.responseText;
+            var stocks = response.split(';');
+            var updated = false;
+
+            var priceTime = null;
+            stocks.forEach(function(stockData) {
+              if (!stockData || stockData.indexOf('~') < 0) return;
+              var fields = stockData.split('~');
+              if (fields.length < 10) return;
+
+              var symbol = fields[0].replace('v_us', '').toUpperCase();
+              var price = parseFloat(fields[3]);
+              var change = parseFloat(fields[31]);
+              var timeStr = fields[30];
+
+              if (!priceTime && timeStr && timeStr.length >= 19) {
+                priceTime = timeStr.substring(0, 19);
+              }
+
+              if (!isNaN(price) && price > 0) {
+                data.positions.forEach(function(p) {
+                  if (p.symbol === symbol && price !== p.price) {
+                    p.price = price;
+                    p.priceChange = change;
+                    p.value = roundCurrency(p.shares * price);
+                    p.lastUpdate = new Date().toLocaleTimeString();
+                    updated = true;
+                  }
+                });
+              }
+            });
+
+            if (priceTime) {
+              data.priceTime = priceTime;
+            }
+
+            saveData();
+            if (updated) {
+              autoRebalance();
+            }
+            render();
+            if (!updated) {
+              showToast('价格未更新');
+            }
+          } catch (e) {
+            showToast('解析数据失败');
+          }
+        } else {
+          showToast('获取价格失败');
+        }
+      }
+    };
+    xhr.send();
+  };
+
+  // Init
+  loadData();
+  loadHistory();
+  showInit = !localStorage.getItem(STORAGE_KEY) || data.cash === 0;
+  render();
+})();
+  </script>
+</body>
+</html>
