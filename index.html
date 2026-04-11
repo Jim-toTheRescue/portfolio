@@ -364,7 +364,7 @@ body { font-family: monospace; background: var(--bg-primary); color: var(--text-
         var alerts = [];
         if (tierNeedsRebalance) alerts.push('需要调整');
         if (bufferPositions.length > 0) alerts.push('有' + bufferPositions.length + '个缓冲仓位');
-        if (tierNeedsUpgrade) alerts.push('有股票想晋级');
+        if (tierNeedsUpgrade) alerts.push('有股票仓位过高');
         html += '<div style="padding:8px;background:rgba(248,81,73,0.1);border-radius:4px;margin-bottom:8px;font-size:0.75rem;color:var(--red)">' + alerts.join('，') + '</div>';
       }
 
