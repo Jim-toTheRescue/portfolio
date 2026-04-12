@@ -1,0 +1,48 @@
+/**
+ * 梯队配置常量
+ */
+export const TIER = [
+  { name: '第一梯队', target: 30, limit: 1, buffer: 0, min: 25 },
+  { name: '第二梯队', target: 20, limit: 2, buffer: 1, min: 15, max: 25 },
+  { name: '第三梯队', target: 10, limit: 3, buffer: 3, min: 5, max: 15 }
+];
+
+/**
+ * LocalStorage keys
+ */
+export const STORAGE_KEY = 'portfolio';
+export const HISTORY_KEY = 'portfolio-history';
+
+/**
+ * @typedef {Object} Position
+ * @property {string} symbol - 股票代码
+ * @property {string} name - 股票名称
+ * @property {number} shares - 股数
+ * @property {number} price - 当前价格
+ * @property {number} value - 市值
+ * @property {number} avgCost - 平均成本
+ * @property {number} tier - 梯队 (1/2/3)
+ * @property {boolean} inBuffer - 是否在缓冲位
+ * @property {number} priceChange - 涨跌幅 (%)
+ */
+
+/**
+ * @typedef {Object} Portfolio
+ * @property {Position[]} positions - 持仓列表
+ * @property {number} cash - 现金
+ * @property {string} priceTime - 价格刷新时间
+ */
+
+/**
+ * @typedef {Object} History
+ * @property {string} type - 类型 (buy/adj/sell/clear)
+ * @property {string} symbol - 股票代码
+ * @property {string} name - 股票名称
+ * @property {string} action - 操作 (建仓/加仓/减仓/清仓)
+ * @property {number} adjShares - 操作股数
+ * @property {number} totalShares - 操作后总股数
+ * @property {number} price - 成交价格
+ * @property {number} fromTier - 原梯队
+ * @property {number} toTier - 新梯队
+ * @property {string} time - 操作时间
+ */
