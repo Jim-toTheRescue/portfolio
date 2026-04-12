@@ -237,7 +237,16 @@ body {
 
 .position-buffer {
   opacity: 0.8;
-  border-left: 3px solid var(--text-secondary);
+}
+
+.position-high {
+  background: rgba(231, 76, 60, 0.08);
+  border: 1px solid var(--red);
+}
+
+.warning-icon {
+  margin-left: 4px;
+  font-size: 0.75rem;
 }
 
 .position-info {
@@ -271,7 +280,6 @@ body {
 }
 
 .drift {
-  font-size: 0.65rem;
   margin-top: 2px;
 }
 

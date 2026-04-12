@@ -14,6 +14,7 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear, con
   const tierUpperLimit = getUpperLimit(position.tier);
   const tierLowerLimit = tierConfig.min;
   const outOfTier = parseFloat(percent) > tierUpperLimit || parseFloat(percent) < tierLowerLimit;
+  const isHighAllocation = parseFloat(percent) > tierUpperLimit;
 
   let recommendation = null;
   if (Math.abs(drift) > 5) {
@@ -27,7 +28,7 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear, con
   }
 
   return (
-    <div className={`position-item ${isBuffer ? 'position-buffer' : ''} ${outOfTier ? 'position-out' : ''}`}>
+    <div className={`position-item ${isBuffer ? 'position-buffer' : ''}`}>
       <div className="position-info">
         <div className="position-code">{position?.symbol || ''} {position?.name || ''}</div>
         <div className="position-name">{position?.shares || 0}股 · ${(position?.value || 0).toLocaleString()}</div>
@@ -35,11 +36,13 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear, con
           ${position?.price || 0}
         </div>
       </div>
-      <div className="position-value">
+<div className="position-value">
         <div className="position-percent">{percent}%</div>
-        <div className={`drift ${driftClass}`}>
-          {(driftClass !== 'drift-normal' && drift !== 0) ? (drift >= 0 ? '↑' : '↓') + Math.abs(drift || 0).toFixed(1) + '%' : ''}
-        </div>
+        {(driftClass !== 'drift-normal' && drift !== 0) && (
+          <div className={`drift ${driftClass}`} style={{ fontSize: '10px' }}>
+            {drift > 0 ? '偏高' : '偏低'} {Math.abs(drift || 0).toFixed(1)}%
+          </div>
+        )}
         {recommendation && <div className="recommendation">{recommendation}</div>}
       </div>
       <div className="position-actions">

@@ -8,14 +8,8 @@ import ConfigModal from './components/ConfigModal';
 import { getConfig } from './utils/constants';
 import { useRouter } from './utils/router';
 import './styles/App.css';
-
 function PortfolioApp() {
   const { navigate } = useRouter();
-  
-  const handleBack = () => {
-    navigate('/manfolio');
-  };
-
   const {
     positions,
     cash,
@@ -27,7 +21,8 @@ function PortfolioApp() {
     addPosition,
     adjustPosition,
     clearPosition,
-    updateCash,
+    fixCash,
+    moveCash,
     refreshPrices,
     applyMockPrice,
     exportData,
@@ -171,10 +166,8 @@ function PortfolioApp() {
         show={showCashModal}
         onClose={() => setShowCashModal(false)}
         cash={cash}
-        onConfirm={(newCash) => {
-          updateCash(newCash);
-          setShowCashModal(false);
-        }}
+        onConfirm={fixCash}
+        onConfirmWithLog={moveCash}
       />
 
       <MockPriceModal

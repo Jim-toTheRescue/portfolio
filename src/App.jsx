@@ -48,7 +48,8 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     addPosition,
     adjustPosition,
     clearPosition,
-    updateCash,
+    fixCash,
+    moveCash,
     refreshPrices,
     applyMockPrice,
     exportData,
@@ -205,7 +206,8 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         show={showCashModal}
         onClose={() => setShowCashModal(false)}
         cash={cash}
-        onConfirm={updateCash}
+        onConfirm={fixCash}
+        onConfirmWithLog={moveCash}
       />
 
       <MockPriceModal

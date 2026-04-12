@@ -602,7 +602,7 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
   );
 }
 
-function CashModal({ show, onClose, cash, onConfirm }) {
+function CashModal({ show, onClose, cash, onConfirm, onConfirmWithLog }) {
   const [value, setValue] = useState('');
 
   useEffect(() => {
@@ -611,9 +611,13 @@ function CashModal({ show, onClose, cash, onConfirm }) {
     }
   }, [show, cash]);
 
-  const handleConfirm = () => {
+  const handleConfirm = (withLog = false) => {
     const newCash = parseFloat(value) || 0;
-    onConfirm(newCash);
+    if (withLog && onConfirmWithLog) {
+      onConfirmWithLog(newCash);
+    } else {
+      onConfirm(newCash);
+    }
     onClose();
   };
 
@@ -639,8 +643,8 @@ function CashModal({ show, onClose, cash, onConfirm }) {
           </div>
         </div>
         <div className="modal-footer">
-          <button className="btn btn-primary" onClick={handleConfirm}>确认</button>
-          <button className="btn btn-secondary" onClick={onClose}>取消</button>
+          <button className="btn btn-primary" onClick={() => handleConfirm(false)}>校正</button>
+          <button className="btn btn-secondary" onClick={() => handleConfirm(true)}>出入金</button>
         </div>
       </div>
     </div>

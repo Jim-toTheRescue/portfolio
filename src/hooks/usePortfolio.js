@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPortfolio, updatePositions, updateCash, updateHistory, updatePriceTime, updateConfig } from '../utils/manfolio';
+import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig } from '../utils/manfolio';
 import { getConfig } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
@@ -47,7 +47,7 @@ export function usePortfolio() {
 
   useEffect(() => {
     if (isInitialized) {
-      updateCash(cash);
+      saveCashToStorage(cash);
     }
   }, [cash]);
 
@@ -342,11 +342,18 @@ export function usePortfolio() {
     return true;
   }, [positions, cash, log]);
 
-  // 修改现金
-  const updateCash = useCallback((newCash) => {
+  // 校正现金（不记录日志）
+  const fixCash = useCallback((newCash) => {
+    setCash(roundCurrency(newCash));
+    saveCashToStorage(roundCurrency(newCash));
+  }, []);
+
+  // 出入金（记录日志）
+  const moveCash = useCallback((newCash) => {
     const oldCash = cash;
     const diff = newCash - oldCash;
     setCash(roundCurrency(newCash));
+    saveCashToStorage(roundCurrency(newCash));
     
     if (diff !== 0) {
       const action = diff > 0 ? '入金' : '出金';
@@ -515,7 +522,8 @@ export function usePortfolio() {
     addPosition,
     adjustPosition,
     clearPosition,
-    updateCash,
+    fixCash,
+    moveCash,
     refreshPrices,
     applyMockPrice,
     exportData,
