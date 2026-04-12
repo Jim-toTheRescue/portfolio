@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-function Header({ onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onMockPrice, onConfig }) {
+function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onMockPrice, onConfig }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -26,7 +26,7 @@ function Header({ onRefresh, onClearHistory, onToggleHistory, onExport, onImport
 
   return (
     <div className="header">
-      <h1>Portfolio</h1>
+      <h1 onClick={onBack} style={{ cursor: onBack ? 'pointer' : 'default' }}>Portfolio</h1>
       <div className="header-buttons">
         <button className="btn btn-secondary" onClick={onRefresh}>刷新价格</button>
         <button className="btn btn-secondary" onClick={onClearHistory}>清历史</button>

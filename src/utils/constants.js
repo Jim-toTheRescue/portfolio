@@ -2,6 +2,8 @@
  * 梯队配置常量
  */
 
+import { getActivePortfolio } from './manfolio';
+
 const CONFIG_KEY = 'portfolio-config';
 const CONFIG_LOCK_KEY = 'portfolio-config-locked';
 
@@ -13,6 +15,10 @@ const defaultTIER = [
 
 export function getTIER() {
   try {
+    const p = getActivePortfolio();
+    if (p && p.config) {
+      return p.config;
+    }
     const saved = localStorage.getItem(CONFIG_KEY);
     if (saved) {
       const config = JSON.parse(saved);

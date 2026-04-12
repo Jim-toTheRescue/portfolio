@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { STORAGE_KEY, HISTORY_KEY, getConfig } from '../utils/constants';
+import { getPortfolio, updatePositions, updateCash, updateHistory, updatePriceTime, updateConfig } from '../utils/manfolio';
+import { getConfig } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
 
@@ -27,49 +28,40 @@ export function usePortfolio() {
 
   // 初始化
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const historySaved = localStorage.getItem(HISTORY_KEY);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setPositions(parsed.positions || []);
-        setCash(parsed.cash || 0);
-        setPriceTime(parsed.priceTime || null);
-      } catch (e) {
-        setPositions([]);
-        setCash(0);
-      }
+    const p = getPortfolio();
+    if (p) {
+      setPositions(p.positions || []);
+      setCash(p.cash || 0);
+      setHistory(p.history || []);
+      setPriceTime(p.priceTime || null);
+      setIsInitialized(true);
     }
-    if (historySaved) {
-      try {
-        setHistory(JSON.parse(historySaved));
-      } catch (e) {}
-    }
-    setIsInitialized(true);
   }, []);
 
-  // 保存数据
-  const saveData = useCallback(() => {
-    if (!isInitialized) return;
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ positions, cash, priceTime })
-    );
-  }, [positions, cash, priceTime, isInitialized]);
-
-  // 保存历史
-  const saveHistory = useCallback(() => {
-    if (!isInitialized) return;
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-  }, [history, isInitialized]);
+  // 保存数据变化
+  useEffect(() => {
+    if (isInitialized) {
+      updatePositions(positions);
+    }
+  }, [positions]);
 
   useEffect(() => {
-    saveData();
-  }, [positions, cash, isInitialized]);
+    if (isInitialized) {
+      updateCash(cash);
+    }
+  }, [cash]);
 
   useEffect(() => {
-    saveHistory();
-  }, [history, isInitialized]);
+    if (isInitialized) {
+      updateHistory(history);
+    }
+  }, [history]);
+
+  useEffect(() => {
+    if (isInitialized) {
+      updatePriceTime(priceTime);
+    }
+  }, [priceTime]);
 
   // 统一触发 autoRebalance
   useEffect(() => {

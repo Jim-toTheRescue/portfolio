@@ -7,36 +7,15 @@ import { HistoryPanel, Toast } from './components/History';
 import ConfigModal from './components/ConfigModal';
 import { getConfig } from './utils/constants';
 import { useRouter } from './utils/router';
-import { initManfolio, setActivePortfolio, getActivePortfolio } from './utils/manfolio';
-import ManfolioHome from './components/ManfolioHome';
-import PortfolioApp from './PortfolioApp';
 import './styles/App.css';
 
-function App() {
-  const { path, navigate } = useRouter();
+function PortfolioApp() {
+  const { navigate } = useRouter();
+  
+  const handleBack = () => {
+    navigate('/manfolio');
+  };
 
-  useEffect(() => {
-    initManfolio();
-  }, []);
-
-  // 如果是首页路由，显示 ManfolioHome
-  if (path === '/manfolio' || path === '/') {
-    return <ManfolioHome />;
-  }
-
-  // 如果是 portfolio 页面，使用 PortfolioApp
-  if (path.startsWith('/folio/')) {
-    const id = path.split('/folio/')[1];
-    if (id) {
-      setActivePortfolio(id);
-      return <PortfolioAppWrapper folioId={id} navigate={navigate} />;
-    }
-  }
-
-  return <ManfolioHome />;
-}
-
-function PortfolioAppWrapper({ folioId, navigate }) {
   const {
     positions,
     cash,
@@ -65,10 +44,6 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     }
   }, []);
 
-  const handleBack = () => {
-    navigate('/manfolio');
-  };
-
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddPositionModal, setShowAddPositionModal] = useState(false);
   const [showReducePositionModal, setShowReducePositionModal] = useState(false);
@@ -78,6 +53,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
 
+  // 监听导入事件
   useEffect(() => {
     const handleImport = (e) => {
       importData(e.detail);
@@ -138,12 +114,13 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         </button>
       </div>
 
-      <div className="main-content">
-        {getConfig().map((_, i) => (
+      <div className="tier-list">
+        {getConfig().map((tier, i) => (
           <TierCard
-            key={i + 1}
+            key={i}
             tier={i + 1}
-            positions={positions}
+            positions={positions.filter(p => p.tier === i + 1 && !p.inBuffer)}
+            bufferPositions={positions.filter(p => p.tier === i + 1 && p.inBuffer)}
             total={total}
             onAdd={handleAdd}
             onReduce={handleReduce}
@@ -152,12 +129,9 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         ))}
       </div>
 
-      <HistoryPanel
-        show={showHistory}
-        history={history}
-        onToggle={() => setShowHistory(!showHistory)}
-        onClear={clearHistory}
-      />
+      <HistoryPanel show={showHistory} history={history} onToggle={() => setShowHistory(false)} onClear={clearHistory} />
+
+      <Toast message={toast} />
 
       <AddModal
         show={showAddModal}
@@ -165,7 +139,6 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         positions={positions}
         cash={cash}
         onAdd={addPosition}
-        getRecommendation={getRecommendation}
       />
 
       <AddPositionModal
@@ -198,13 +171,19 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         show={showCashModal}
         onClose={() => setShowCashModal(false)}
         cash={cash}
-        onConfirm={updateCash}
+        onConfirm={(newCash) => {
+          updateCash(newCash);
+          setShowCashModal(false);
+        }}
       />
 
       <MockPriceModal
         show={showMockPriceModal}
         onClose={() => setShowMockPriceModal(false)}
-        onConfirm={applyMockPrice}
+        onConfirm={(prices) => {
+          applyMockPrice(prices);
+          setShowMockPriceModal(false);
+        }}
       />
 
       <ConfigModal
@@ -212,11 +191,8 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onClose={() => setShowConfigModal(false)}
         readOnly={true}
       />
-
-      <Toast message={toast} />
     </div>
   );
 }
 
-export default App;
-export { PortfolioAppWrapper };
+export default PortfolioApp;

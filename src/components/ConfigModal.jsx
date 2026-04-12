@@ -1,24 +1,27 @@
 import { useState, useEffect } from 'react';
 import { getConfig, saveConfig, isConfigLocked, resetConfig } from '../utils/constants';
 
-function ConfigModal({ show, onClose }) {
+function ConfigModal({ show, onClose, readOnly = false }) {
   const [config, setConfig] = useState(null);
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
     if (show) {
       setConfig(getConfig());
-      setLocked(isConfigLocked());
+      setLocked(readOnly || isConfigLocked());
     }
-  }, [show]);
+  }, [show, readOnly]);
 
   const handleChange = (index, field, value) => {
+    if (readOnly) return;
     const newConfig = [...config];
     newConfig[index] = { ...newConfig[index], [field]: value };
     setConfig(newConfig);
   };
 
   const handleAdd = () => {
+    if (readOnly) return;
+    if (!config) return;
     const nextNum = config.length + 1;
     const lastTier = config[config.length - 1];
     const newMin = lastTier ? Math.max(5, lastTier.min - 10) : 5;
@@ -92,22 +95,22 @@ function ConfigModal({ show, onClose }) {
           <button className="modal-close" onClick={onClose} style={{ color: '#888', fontSize: '24px' }}>×</button>
         </div>
         <div className="modal-body" style={{ padding: '24px' }}>
-          <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 8px' }}>
+          <table className="config-table">
             <thead>
-              <tr style={{ color: 'rgba(255,255,255,0.6)', fontSize: '13px', fontWeight: '500' }}>
-                <th style={{ textAlign: 'left', padding: '8px 12px' }}>梯队名称</th>
-                <th style={{ textAlign: 'center', padding: '8px' }}>目标%</th>
-                <th style={{ textAlign: 'center', padding: '8px' }}>主位</th>
-                <th style={{ textAlign: 'center', padding: '8px' }}>缓冲</th>
-                <th style={{ textAlign: 'center', padding: '8px' }}>最小%</th>
-                <th style={{ textAlign: 'center', padding: '8px' }}>最大%</th>
-                {!locked && <th style={{ width: '40px' }}></th>}
+              <tr>
+                <th>梯队名称</th>
+                <th>目标%</th>
+                <th>主位</th>
+                <th>缓冲</th>
+                <th>最小%</th>
+                <th>最大%</th>
+                {!locked && <th></th>}
               </tr>
             </thead>
             <tbody>
               {config.map((tier, i) => (
-                <tr key={i} style={{ background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-                  <td style={{ padding: '8px 12px' }}>
+                <tr key={i}>
+                  <td>
                     <input
                       type="text"
                       style={inputStyle}
