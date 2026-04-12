@@ -1,7 +1,7 @@
 import { getConfig, getTierConfig } from '../utils/constants';
 import { tierName, getUpperLimit } from '../utils/helpers';
 
-function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
+function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear, confirmClear }) {
   const tierIdx = position.tier - 1;
   const tierConfig = getConfig()[tierIdx] || getConfig()[2];
   const drift = total > 0 ? (position.value / total) * 100 - tierConfig.target : 0;
@@ -36,8 +36,9 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
         </div>
       </div>
       <div className="position-value">
+        <div className="position-percent">{percent}%</div>
         <div className={`drift ${driftClass}`}>
-          {percent}% {(driftClass !== 'drift-normal' && drift !== 0) ? (drift >= 0 ? '↑' : '↓') + Math.abs(drift || 0).toFixed(1) + '%' : ''}
+          {(driftClass !== 'drift-normal' && drift !== 0) ? (drift >= 0 ? '↑' : '↓') + Math.abs(drift || 0).toFixed(1) + '%' : ''}
         </div>
         {recommendation && <div className="recommendation">{recommendation}</div>}
       </div>
@@ -45,7 +46,13 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
         <button className="btn-small btn-primary" onClick={() => onAdd(position.symbol)}>加仓</button>
         <button className="btn-small btn-danger" onClick={() => onReduce(position.symbol)}>减仓</button>
         {position.tier === getConfig().length && (
-          <button className="btn-small btn-secondary" onClick={() => onClear(position.symbol)}>清仓</button>
+          <button 
+            className="btn-small btn-secondary" 
+            onClick={() => onClear(position.symbol)}
+            style={confirmClear === position.symbol ? { borderColor: 'var(--red)', color: 'var(--red)' } : {}}
+          >
+            {confirmClear === position.symbol ? '确认' : '清仓'}
+          </button>
         )}
       </div>
     </div>
@@ -56,7 +63,7 @@ function EmptySlot({ isBuffer }) {
   return <div className={`empty-slot ${isBuffer ? 'buffer' : ''}`}>{isBuffer ? '缓冲' : '空位'}</div>;
 }
 
-export default function TierCard({ tier, positions, total, onAdd, onReduce, onClear }) {
+export default function TierCard({ tier, positions, total, onAdd, onReduce, onClear, confirmClear }) {
   const tierConfig = getConfig()[tier - 1] || getConfig()[0];
   const mainPositions = positions.filter(p => p.tier === tier && !p.inBuffer);
   const bufferPositions = positions.filter(p => p.tier === tier && p.inBuffer);
@@ -96,6 +103,7 @@ export default function TierCard({ tier, positions, total, onAdd, onReduce, onCl
             onAdd={onAdd}
             onReduce={onReduce}
             onClear={onClear}
+            confirmClear={confirmClear}
           />
         ))}
         
@@ -119,6 +127,7 @@ export default function TierCard({ tier, positions, total, onAdd, onReduce, onCl
                 onAdd={onAdd}
                 onReduce={onReduce}
                 onClear={onClear}
+                confirmClear={confirmClear}
               />
             ))}
             

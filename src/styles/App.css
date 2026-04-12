@@ -78,12 +78,13 @@ body {
 }
 
 .btn-primary {
-  background: var(--blue);
-  color: white;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
 .btn-primary:hover {
-  opacity: 0.9;
+  background: var(--border);
 }
 
 .btn-secondary {
@@ -97,8 +98,9 @@ body {
 }
 
 .btn-danger {
-  background: var(--red);
-  color: white;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
 .btn-small {
@@ -117,8 +119,9 @@ body {
 }
 
 .btn-small.btn-primary {
-  background: var(--green);
-  color: white;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
 }
 
 /* Summary */
@@ -268,8 +271,14 @@ body {
 }
 
 .drift {
-  font-size: 0.75rem;
-  margin-top: 4px;
+  font-size: 0.65rem;
+  margin-top: 2px;
+}
+
+.position-percent {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .drift-normal {

@@ -6,6 +6,7 @@ import CreatePortfolioModal from './CreatePortfolioModal';
 function ManfolioHome() {
   const [portfolios, setPortfolios] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const { navigate } = useRouter();
   const fileInputRef = useRef(null);
 
@@ -48,9 +49,13 @@ function ManfolioHome() {
 
   const handleDelete = (e, id) => {
     e.stopPropagation();
-    if (confirm('确认删除?')) {
+    if (confirmDelete === id) {
       deletePortfolio(id);
       setPortfolios(listPortfolios());
+      setConfirmDelete(null);
+    } else {
+      setConfirmDelete(id);
+      setTimeout(() => setConfirmDelete(null), 3000);
     }
   };
 

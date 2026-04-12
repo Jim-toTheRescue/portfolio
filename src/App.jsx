@@ -102,9 +102,15 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     }
   };
 
+  const [confirmClear, setConfirmClear] = useState(null);
+
   const handleClear = (symbol) => {
-    if (confirm(`确认清仓 ${symbol}?`)) {
+    if (confirmClear === symbol) {
       clearPosition(symbol);
+      setConfirmClear(null);
+    } else {
+      setConfirmClear(symbol);
+      setTimeout(() => setConfirmClear(null), 3000);
     }
   };
 
@@ -148,6 +154,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             onAdd={handleAdd}
             onReduce={handleReduce}
             onClear={handleClear}
+            confirmClear={confirmClear}
           />
         ))}
       </div>
