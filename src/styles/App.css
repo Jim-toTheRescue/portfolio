@@ -46,12 +46,15 @@ body {
   margin-bottom: 16px;
   flex-wrap: wrap;
   gap: 8px;
+  box-sizing: border-box;
 }
 
 .header h1 {
   font-size: 1.25rem;
   color: var(--blue);
   cursor: pointer;
+  line-height: 1;
+  margin: 0;
 }
 
 .header h1:hover {
@@ -663,18 +666,6 @@ body {
 }
 
 /* Manfolio Home */
-.manfolio-home {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 16px;
-}
-
-.manfolio-home h1 {
-  margin-bottom: 24px;
-  font-size: 1.25rem;
-  color: var(--blue);
-}
-
 .portfolio-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -683,6 +674,7 @@ body {
 }
 
 .portfolio-card {
+  position: relative;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -715,7 +707,10 @@ body {
   text-overflow: ellipsis;
 }
 
-.btn-delete {
+.btn-delete,
+.btn-config {
+  position: absolute;
+  right: 8px;
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -723,17 +718,31 @@ body {
   cursor: pointer;
   opacity: 0;
   transition: opacity 0.2s;
+  z-index: 1;
 }
 
-.portfolio-card:hover .btn-delete {
-  opacity: 1;
+.btn-delete {
+  top: 8px;
 }
 
-.btn-delete:hover {
-  color: var(--red);
+.btn-config {
+  top: 32px;
 }
 
-.portfolio-stats {
+.portfolio-card:hover .btn-delete,
+  .portfolio-card:hover .btn-config {
+    opacity: 1;
+  }
+  
+  .btn-delete:hover {
+    color: var(--red);
+  }
+
+  .btn-config:hover {
+    color: var(--blue);
+  }
+
+  .portfolio-stats {
   display: flex;
   gap: 16px;
   flex-wrap: wrap;

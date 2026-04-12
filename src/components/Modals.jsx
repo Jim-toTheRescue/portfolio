@@ -568,26 +568,12 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
                 onChange={handleSharesChange}
                 placeholder="输入股数"
               />
-              {/* T1: =, min1 (减仓操作) */}
-              {tier === 1 && (
+              {/* 减仓按钮: ↓放前面, =放后面, minX最后 */}
+              {tier >= 1 && (
                 <>
-                  <button onClick={() => handleButtonClick('=', false)}>=</button>
-                  <button onClick={() => handleButtonClick('min1', false)}>min1</button>
-                </>
-              )}
-              {/* T2: =, minX (减仓操作) */}
-              {tier === 2 && (
-                <>
-                  <button onClick={() => handleButtonClick('=', false)}>=</button>
-                  <button onClick={() => handleButtonClick('min2', false)}>min2</button>
-                </>
-              )}
-              {/* T3+: =, minX, ↓ (减仓操作) */}
-              {tier >= 3 && (
-                <>
+                  {tier < getConfig().length && <button onClick={() => handleButtonClick('DOWN', false)}>↓</button>}
                   <button onClick={() => handleButtonClick('=', false)}>=</button>
                   <button onClick={() => handleButtonClick(`min${tier}`, false)}>min{tier}</button>
-                  <button onClick={() => handleButtonClick('DOWN', false)}>↓</button>
                 </>
               )}
             </div>

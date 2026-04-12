@@ -211,3 +211,26 @@ export function updateConfig(config) {
   data.portfolios[data.activePortfolio].config = config;
   saveManfolio(data);
 }
+
+/**
+ * 导出全部数据
+ */
+export function exportAllData() {
+  const data = initManfolio();
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `manfolio-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * 导入全部数据
+ */
+export function importAllData(data) {
+  if (data && data.portfolios) {
+    saveManfolio(data);
+  }
+}

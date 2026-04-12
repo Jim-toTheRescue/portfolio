@@ -207,7 +207,7 @@ function ConfigModal({ show, onClose, readOnly = false }) {
               color: '#f39c12',
               border: '1px solid rgba(243, 156, 18, 0.3)'
             }}>
-              ⚠️ 配置已锁定。如需修改，请清除浏览器 localStorage 中的 <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>portfolio-config</code> 和 <code style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px' }}>portfolio-config-locked</code>，然后刷新页面。
+              ⚠️ 配置已锁定，不支持修改。
             </div>
           )}
         </div>

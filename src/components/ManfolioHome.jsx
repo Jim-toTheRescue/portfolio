@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { initManfolio, listPortfolios, createPortfolio, deletePortfolio, setActivePortfolio } from '../utils/manfolio';
+import { useState, useEffect, useRef } from 'react';
+import { initManfolio, listPortfolios, createPortfolio, deletePortfolio, setActivePortfolio, exportAllData, importAllData } from '../utils/manfolio';
 import { useRouter } from '../utils/router';
 import CreatePortfolioModal from './CreatePortfolioModal';
 
@@ -7,6 +7,33 @@ function ManfolioHome() {
   const [portfolios, setPortfolios] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const { navigate } = useRouter();
+  const fileInputRef = useRef(null);
+
+  const handleExportAll = () => {
+    exportAllData();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target?.result);
+          importAllData(data);
+          setPortfolios(listPortfolios());
+        } catch (err) {
+          alert('文件格式错误');
+        }
+      };
+      reader.readAsText(file);
+    }
+    e.target.value = '';
+  };
 
   useEffect(() => {
     initManfolio();
@@ -33,14 +60,27 @@ function ManfolioHome() {
   };
 
   return (
-    <div className="manfolio-home">
-      <h1>Manfolio</h1>
+    <div className="app">
+      <div className="header">
+        <h1>Manfolio</h1>
+        <div className="header-buttons">
+          <button className="btn btn-secondary" onClick={handleExportAll}>导出全部</button>
+          <button className="btn btn-secondary" onClick={handleImportClick}>导入全部</button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden-input"
+            onChange={handleFileChange}
+          />
+        </div>
+      </div>
       <div className="portfolio-list">
         {portfolios.map(p => (
           <div key={p.id} className="portfolio-card" onClick={() => handleEnter(p.id)}>
+            <button className="btn-delete" onClick={(e) => handleDelete(e, p.id)}>×</button>
             <div className="portfolio-card-header">
               <span className="portfolio-name">{p.name}</span>
-              <button className="btn-delete" onClick={(e) => handleDelete(e, p.id)}>×</button>
             </div>
             <div className="portfolio-stats">
               <div className="stat-item">
