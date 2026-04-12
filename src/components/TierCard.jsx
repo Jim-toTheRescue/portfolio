@@ -6,7 +6,6 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
   const percent = total > 0 ? (position.value / total * 100).toFixed(2) : '0.00';
   const priceChange = position.priceChange || 0;
   const priceChangeClass = priceChange > 0 ? 'price-up' : priceChange < 0 ? 'price-down' : '';
-  const priceChangeStr = priceChange !== 0 ? (priceChange > 0 ? '+' : '') + (Number(priceChange) || 0).toFixed(2) + '%' : '';
   
   const driftClass = Math.abs(drift) <= 2 ? 'drift-normal' : Math.abs(drift) <= 5 ? 'drift-warning' : 'drift-critical';
   
@@ -31,12 +30,12 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
         <div className="position-code">{position?.symbol || ''} {position?.name || ''}</div>
         <div className="position-name">{position?.shares || 0}股 · ${(position?.value || 0).toLocaleString()}</div>
         <div className="update-time">
-          ${position?.price || 0} <span className={priceChangeClass}>{priceChangeStr}</span>
+          ${position?.price || 0}
         </div>
       </div>
       <div className="position-value">
         <div className={`drift ${driftClass}`}>
-          {percent}% {drift !== 0 ? (drift >= 0 ? '↑' : '↓') + Math.abs(drift || 0).toFixed(1) + '%' : ''}
+          {percent}% {(driftClass !== 'drift-normal' && drift !== 0) ? (drift >= 0 ? '↑' : '↓') + Math.abs(drift || 0).toFixed(1) + '%' : ''}
         </div>
         {recommendation && <div className="recommendation">{recommendation}</div>}
       </div>

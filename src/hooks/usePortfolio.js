@@ -18,12 +18,12 @@ export function usePortfolio() {
   }, []);
 
   // 记录日志
-  const log = useCallback((entry) => {
+  const log = (entry) => {
     setHistory((prev) => {
       const newHistory = [entry, ...prev].slice(0, 100);
       return newHistory;
     });
-  }, []);
+  };
 
   // 初始化
   useEffect(() => {
@@ -74,6 +74,16 @@ export function usePortfolio() {
     if (positions.length > 0) {
       const rebalanced = autoRebalance(positions, totalWithCash(positions, cash));
       if (JSON.stringify(rebalanced) !== JSON.stringify(positions)) {
+        // 记录梯队变动
+        rebalanced.forEach((newPos) => {
+          const oldPos = positions.find(p => p.symbol === newPos.symbol);
+          if (oldPos && (oldPos.tier !== newPos.tier || oldPos.inBuffer !== newPos.inBuffer)) {
+            const action = oldPos.tier > newPos.tier 
+              ? `晋级 T${oldPos.tier}→T${newPos.tier}`
+              : `降级 T${oldPos.tier}→T${newPos.tier}`;
+            log(makeLog('rebalance', newPos.symbol, newPos.name, action, 0, newPos.shares, newPos.price, oldPos.tier, newPos.tier));
+          }
+        });
         setPositions(rebalanced);
       }
     }
@@ -318,8 +328,15 @@ export function usePortfolio() {
 
   // 修改现金
   const updateCash = useCallback((newCash) => {
+    const oldCash = cash;
+    const diff = newCash - oldCash;
     setCash(roundCurrency(newCash));
-  }, []);
+    
+    if (diff !== 0) {
+      const action = diff > 0 ? '入金' : '出金';
+      log(makeLog('cash', '-', '-', action, Math.abs(diff), roundCurrency(newCash), 0, 0, 0));
+    }
+  }, [cash]);
 
   // 刷新价格
   const refreshPrices = useCallback(async () => {
@@ -350,7 +367,7 @@ export function usePortfolio() {
         const change = parseFloat(fields[31]);
         const timeStr = fields[30];
 
-        if (priceTime && timeStr && timeStr.length >= 19) {
+        if (timeStr && timeStr.length >= 19) {
           priceTime = timeStr.substring(0, 19);
         }
 
