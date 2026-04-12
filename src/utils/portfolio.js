@@ -1,12 +1,13 @@
-import { TIER } from './constants.js';
+import { getConfig } from './constants.js';
 import { getTargetTier } from './helpers.js';
 
 export function autoRebalance(positions, total) {
   const DRIFT_THRESHOLD = 5;
   
   const needsRebalance = positions.some(p => {
+    if (p.tier < 1 || p.tier > getConfig().length) return false;
     const percent = (p.value / total) * 100;
-    const target = TIER[p.tier - 1].target;
+    const target = getConfig()[p.tier - 1].target;
     return Math.abs(percent - target) > DRIFT_THRESHOLD;
   });
   
@@ -51,8 +52,8 @@ export function autoRebalance(positions, total) {
     for (const pos of working) {
       const target = pos.targetTier;
       const current = pos.p.tier;
-      const limit = TIER[target - 1].limit;
-      const bufferLimit = TIER[target - 1].buffer;
+      const limit = getConfig()[target - 1].limit;
+      const bufferLimit = getConfig()[target - 1].buffer;
 
       if (target === current) {
         if (mainSlots[target].length < limit) {
@@ -89,9 +90,9 @@ export function autoRebalance(positions, total) {
             let placed = false;
             const tryTier = target + 1;
             
-            if (tryTier <= 3) {
-              const tryLimit = TIER[tryTier - 1].limit;
-              const tryBuffer = TIER[tryTier - 1].buffer;
+            if (tryTier <= getConfig().length) {
+              const tryLimit = getConfig()[tryTier - 1].limit;
+              const tryBuffer = getConfig()[tryTier - 1].buffer;
               const tryFull = mainSlots[tryTier].length >= tryLimit && 
                              (tryBuffer === 0 || bufferSlots[tryTier].length >= tryBuffer);
               
@@ -118,8 +119,8 @@ export function autoRebalance(positions, total) {
       }
     }
 
-    for (let tier = 1; tier <= 3; tier++) {
-      while (mainSlots[tier].length < TIER[tier - 1].limit && bufferSlots[tier].length > 0) {
+    for (let tier = 1; tier <= getConfig().length; tier++) {
+      while (mainSlots[tier].length < getConfig()[tier - 1].limit && bufferSlots[tier].length > 0) {
         const pos = bufferSlots[tier].shift();
         if (pos.originalInBuffer) {
           continue;
@@ -160,8 +161,10 @@ export function calculateShares(params) {
   let targetValue;
   let shares = 0;
 
+  if (tier < 1 || tier > getConfig().length) return 0;
+
   if (button === '=') {
-    const targetPercent = TIER[tier - 1].target / 100;
+    const targetPercent = getConfig()[tier - 1].target / 100;
     targetValue = total * targetPercent;
 
     if (isAdd) {
@@ -182,9 +185,9 @@ export function calculateShares(params) {
     }
   } else if (button === 'UP' || button === 'DOWN') {
     const nextTier = button === 'UP' ? tier - 1 : tier + 1;
-    if (nextTier < 1 || nextTier > 3) return 0;
+    if (nextTier < 1 || nextTier > getConfig().length) return 0;
 
-    const targetPercent = TIER[nextTier - 1].target / 100;
+    const targetPercent = getConfig()[nextTier - 1].target / 100;
     targetValue = total * targetPercent;
 
     if (isAdd) {
@@ -214,7 +217,7 @@ export function calculateShares(params) {
       }
     }
   } else if (button === 'max1') {
-    const limit = 35;
+    const limit = getConfig()[0].max;
     targetValue = total * (limit / 100);
 
     if (posValue >= targetValue) {
@@ -235,7 +238,7 @@ export function calculateShares(params) {
       shares = bestShares > 0 ? bestShares : 1;
     }
   } else if (button === 'min1') {
-    const limit = TIER[0].min;
+    const limit = getConfig()[0].min;
     targetValue = total * (limit / 100);
     const reduce = posValue - targetValue;
 
@@ -257,7 +260,7 @@ export function calculateShares(params) {
       shares = bestShares > 0 ? bestShares : 1;
     }
   } else if (button === 'min2') {
-    const limit = TIER[1].min;
+    const limit = getConfig()[1].min;
     targetValue = total * (limit / 100);
     const reduce = posValue - targetValue;
 
@@ -287,34 +290,40 @@ export function calculateShares(params) {
       }
     }
   } else if (button === 'min3') {
-    const limit = TIER[2].min;
-    targetValue = total * (limit / 100);
-    const reduce = posValue - targetValue;
+    const config = getConfig();
+    if (config.length >= 3) {
+      const limit = config[2].min;
+      const maxVal = config[2].max;
+      targetValue = total * (limit / 100);
+      const reduce = posValue - targetValue;
 
-    if (reduce <= 0) {
-      shares = 0;
-    } else {
-      let bestShares = 0;
-      let minDiffOver = Infinity;
+      if (reduce <= 0) {
+        shares = 0;
+      } else {
+        let bestShares = 0;
+        let minDiffOver = Infinity;
 
-      for (let s = 1; s <= 10000; s++) {
-        const newValue = posValue - s * price;
-        if (newValue < 0) break;
-        const newPercent = (newValue / total) * 100;
+        for (let s = 1; s <= 10000; s++) {
+          const newValue = posValue - s * price;
+          if (newValue < 0) break;
+          const newPercent = (newValue / total) * 100;
 
-        if (newPercent > TIER[2].max) continue;
+          if (newPercent > maxVal) continue;
 
-        const diff = newPercent - limit;
+          const diff = newPercent - limit;
 
-        if (diff >= 0 && diff < minDiffOver) {
-          minDiffOver = diff;
-          bestShares = s;
+          if (diff >= 0 && diff < minDiffOver) {
+            minDiffOver = diff;
+            bestShares = s;
+          }
         }
+        shares = bestShares > 0 ? bestShares : 1;
       }
-      shares = bestShares > 0 ? bestShares : 1;
+    } else {
+      shares = 0;
     }
   } else if (button === 'max2') {
-    const limit = 25;
+    const limit = getConfig()[1].max;
     targetValue = total * (limit / 100);
 
     if (posValue >= targetValue) {
@@ -335,23 +344,28 @@ export function calculateShares(params) {
       shares = bestShares > 0 ? bestShares : 1;
     }
   } else if (button === 'max3') {
-    const limit = 15;
-    targetValue = total * (limit / 100);
+    const config = getConfig();
+    if (config.length >= 3) {
+      const limit = config[2].max;
+      targetValue = total * (limit / 100);
 
-    if (posValue >= targetValue) {
-      shares = 0;
-    } else {
-      let bestShares = 0;
-      for (let s = 1; s <= 10000; s++) {
-        const newValue = posValue + s * price;
-        const newPercent = (newValue / total) * 100;
-        if (newPercent < limit) {
-          bestShares = s;
-        } else {
-          break;
+      if (posValue >= targetValue) {
+        shares = 0;
+      } else {
+        let bestShares = 0;
+        for (let s = 1; s <= 10000; s++) {
+          const newValue = posValue + s * price;
+          const newPercent = (newValue / total) * 100;
+          if (newPercent < limit) {
+            bestShares = s;
+          } else {
+            break;
+          }
         }
+        shares = bestShares > 0 ? bestShares : 1;
       }
-      shares = bestShares > 0 ? bestShares : 1;
+    } else {
+      shares = 0;
     }
   }
 

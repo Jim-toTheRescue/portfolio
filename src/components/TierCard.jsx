@@ -1,16 +1,18 @@
-import { TIER } from '../utils/constants';
-import { tierName } from '../utils/helpers';
+import { getConfig, getTierConfig } from '../utils/constants';
+import { tierName, getUpperLimit } from '../utils/helpers';
 
 function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
-  const drift = total > 0 ? (position.value / total) * 100 - TIER[position.tier - 1].target : 0;
+  const tierIdx = position.tier - 1;
+  const tierConfig = getConfig()[tierIdx] || getConfig()[2];
+  const drift = total > 0 ? (position.value / total) * 100 - tierConfig.target : 0;
   const percent = total > 0 ? (position.value / total * 100).toFixed(2) : '0.00';
   const priceChange = position.priceChange || 0;
   const priceChangeClass = priceChange > 0 ? 'price-up' : priceChange < 0 ? 'price-down' : '';
   
   const driftClass = Math.abs(drift) <= 2 ? 'drift-normal' : Math.abs(drift) <= 5 ? 'drift-warning' : 'drift-critical';
   
-  const tierUpperLimit = position.tier === 1 ? 35 : position.tier === 2 ? 25 : 15;
-  const tierLowerLimit = position.tier === 1 ? 25 : position.tier === 2 ? 15 : 5;
+  const tierUpperLimit = getUpperLimit(position.tier);
+  const tierLowerLimit = tierConfig.min;
   const outOfTier = parseFloat(percent) > tierUpperLimit || parseFloat(percent) < tierLowerLimit;
 
   let recommendation = null;
@@ -18,8 +20,8 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
     if (drift > 0 && position.tier > 1) {
       const targetTier = Math.max(1, position.tier - 1);
       recommendation = `建议升${tierName(targetTier)}`;
-    } else if (drift < 0 && position.tier < 3) {
-      const targetTier = Math.min(3, position.tier + 1);
+    } else if (drift < 0 && position.tier < getConfig().length) {
+      const targetTier = Math.min(getConfig().length, position.tier + 1);
       recommendation = `建议降${tierName(targetTier)}`;
     }
   }
@@ -42,7 +44,7 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear }) {
       <div className="position-actions">
         <button className="btn-small btn-primary" onClick={() => onAdd(position.symbol)}>加仓</button>
         <button className="btn-small btn-danger" onClick={() => onReduce(position.symbol)}>减仓</button>
-        {position.tier === 3 && (
+        {position.tier === getConfig().length && (
           <button className="btn-small btn-secondary" onClick={() => onClear(position.symbol)}>清仓</button>
         )}
       </div>
@@ -55,7 +57,7 @@ function EmptySlot({ isBuffer }) {
 }
 
 export default function TierCard({ tier, positions, total, onAdd, onReduce, onClear }) {
-  const tierConfig = TIER[tier - 1];
+  const tierConfig = getConfig()[tier - 1] || getConfig()[0];
   const mainPositions = positions.filter(p => p.tier === tier && !p.inBuffer);
   const bufferPositions = positions.filter(p => p.tier === tier && p.inBuffer);
   

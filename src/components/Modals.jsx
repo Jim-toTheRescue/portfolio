@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TIER } from '../utils/constants';
-import { getUpperLimit, totalWithCash } from '../utils/helpers';
+import { getConfig, getTierConfig } from '../utils/constants';
+import { getUpperLimit, getTargetTier, totalWithCash } from '../utils/helpers';
 import { calculateShares } from '../utils/portfolio';
 
 // 新建仓位弹窗
@@ -75,23 +75,45 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
       const newTotal = total + costVal;
       const newPercent = (costVal / newTotal) * 100;
       
-      // 新建仓检查单笔不超过15%
-      if (!existing && newPercent > 15) {
-        setWarning('单笔超过15%将跳级，请减少股数');
+      // 新建仓检查：单笔不超过最低梯队上限
+      const lastTier = getConfig().length;
+      const lastTierConfig = getConfig()[lastTier - 1];
+      const maxNewPercent = getUpperLimit(lastTier);
+      
+      if (!existing && newPercent > maxNewPercent) {
+        setWarning(`单笔超过${maxNewPercent}%将跳级，请减少股数`);
       } else if (!existing) {
-        // tier3主位是否已满
-        const tier3MainCount = positions.filter(p => p.tier === 3 && !p.inBuffer).length;
-        if (tier3MainCount >= 3) {
-          setWarning('第三梯队已满');
+        // 最低梯队主位是否已满
+        const lastTier = getConfig().length;
+        const lastTierConfig = getConfig()[lastTier - 1];
+        const lastTierMainCount = positions.filter(p => p.tier === lastTier && !p.inBuffer).length;
+        const lastTierBufferCount = positions.filter(p => p.tier === lastTier && p.inBuffer).length;
+        
+        if (lastTierMainCount >= lastTierConfig.limit) {
+          // 主位满了，检查缓冲位
+          // 缓冲位可用 = 所有更高梯队的主位空位之和
+          let freeSlots = 0;
+          for (let t = 1; t < lastTier; t++) {
+            const tierConfig = getConfig()[t - 1];
+            const tierMainCount = positions.filter(p => p.tier === t && !p.inBuffer).length;
+            freeSlots += Math.max(0, tierConfig.limit - tierMainCount);
+          }
+          const canUseBuffer = lastTierBufferCount < lastTierConfig.buffer && freeSlots > 0;
+          if (canUseBuffer) {
+            setWarning('');
+          } else {
+            setWarning(`第${lastTier}梯队已满`);
+          }
         } else {
           setWarning('');
         }
       } else if (existing) {
-        // 加仓超过15%跳级
+        // 加仓超过当前梯队上限跳级
         const newValue = existing.value + costVal;
         const newValuePercent = (newValue / newTotal) * 100;
-        if (existing.tier === 3 && newValuePercent > 15) {
-          setWarning('持仓超过15%将跳级，请减少股数');
+        const existingUpperLimit = getUpperLimit(existing.tier);
+        if (newValuePercent > existingUpperLimit) {
+          setWarning(`持仓超过${existingUpperLimit}%将跳级，请减少股数`);
         } else {
           setWarning('');
         }
@@ -109,28 +131,30 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
   const handleRecommend = (type) => {
     if (fetchedPrice <= 0) return;
     const total = totalWithCash(positions, cash);
-    const t3Config = TIER[2];
+    const lastTierConfig = getConfig()[getConfig().length - 1];
     
     // 使用与 calculateShares 相同的逻辑
     let button;
     let isAdd = true;
     
-    if (type === 'reset') button = '=';      // T3 目标
-    else if (type === 'min') button = 'min3'; // T3 下限
-    else if (type === 'max') button = 'max3'; // T3 上限
+    const lastTier = getConfig().length;
+    
+    if (type === 'reset') button = '=';      // 最低梯队目标
+    else if (type === 'min') button = `min${lastTier}`; // 最低梯队下限
+    else if (type === 'max') button = `max${lastTier}`; // 最低梯队上限
     
     const posValue = 0;
     const price = fetchedPrice;
     let shares = 0;
     
-    // 新仓位 max3：加到刚好低于15%（留在T3）
-    if (button === 'max3') {
-      const limit = getUpperLimit(3);
+    // 新仓位 maxX：加到刚好低于最低梯队上限
+    if (button === `max${lastTier}`) {
+      const limit = getUpperLimit(lastTier);
       
       if (total <= 0 || price <= 0) {
         shares = 0;
       } else {
-        // 找最接近15%但小于15%的股数
+        // 找最接近最低梯队上限但小于该上限的股数
         let bestShares = 0;
         let bestDiff = Infinity;
         for (let s = 1; s <= 10000; s++) {
@@ -145,9 +169,9 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
         }
         shares = bestShares > 0 ? bestShares : 1;
       }
-    } else if (button === 'min3') {
-      // 新仓位：推荐刚好5%的股数（ >= 5%）
-      const limit = t3Config.min;
+    } else if (button === `min${lastTier}`) {
+      // 新仓位：推荐刚好最低梯队最小值的股数
+      const limit = lastTierConfig.min;
       
       if (total <= 0 || price <= 0) {
         shares = 0;
@@ -171,7 +195,7 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
       }
     } else if (button === '=') {
       // 新仓位：推荐刚好10%的股数
-      const targetPercent = t3Config.target;
+      const targetPercent = lastTierConfig.target;
       
       if (total <= 0 || price <= 0) {
         shares = 0;
@@ -297,32 +321,37 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
         setWarning('资金不足');
       } else if (sharesNum > 0) {
         const newPNum = parseFloat(newP);
-        let newTier;
-        if (newPNum >= 25) newTier = 1;
-        else if (newPNum >= 15) newTier = 2;
-        else newTier = 3;
+        const newTier = getTargetTier(newPNum);
         
         const currentTier = position.tier;
         // 超出目标梯队上限检查
-        if (newTier >= 1 && newTier <= 3) {
-          const upperLimit = newTier === 1 ? 35 : newTier === 2 ? 25 : 15;
+        if (newTier >= 1 && newTier <= getConfig().length) {
+          const upperLimit = getUpperLimit(newTier);
           if (newP > upperLimit) {
             setWarning('超出上限' + upperLimit + '%');
-          } else if (newP > TIER[newTier - 1].target + 5) {
+          } else if (newP > (getConfig()[newTier - 1]?.target || getConfig()[0]?.target || 0) + 5) {
             setWarning('仓位将超过目标，建议减少股数');
           } else {
             // 目标梯队已满检查 - 只有晋级时才检查，原地加仓不检查
             if (newTier !== currentTier) {
               const mainCount = positions.filter(p => p.tier === newTier && !p.inBuffer).length;
               const bufferCount = positions.filter(p => p.tier === newTier && p.inBuffer).length;
-              if (mainCount >= TIER[newTier - 1].limit) {
-                if (bufferCount < TIER[newTier - 1].buffer) {
-                  if (newTier === 2 && currentTier === 3) {
-                    const t1t2Main = positions.filter(p => (p.tier === 1 || p.tier === 2) && !p.inBuffer).length;
-                    if (t1t2Main >= 3) {
-                      setWarning('目标梯队已满');
-                    } else {
+              const tierConfig = getConfig()[newTier - 1];
+              
+              if (mainCount >= tierConfig.limit) {
+                if (bufferCount < tierConfig.buffer) {
+                  // 检查能否进缓冲位：所有更高梯队主位空位之和
+                  if (newTier === getConfig().length && !existing) {
+                    let freeSlots = 0;
+                    for (let t = 1; t < newTier; t++) {
+                      const config = getConfig()[t - 1];
+                      const count = positions.filter(p => p.tier === t && !p.inBuffer).length;
+                      freeSlots += Math.max(0, config.limit - count);
+                    }
+                    if (freeSlots > 0) {
                       setWarning('');
+                    } else {
+                      setWarning('目标梯队已满');
                     }
                   } else {
                     setWarning('');
@@ -398,7 +427,7 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
                   <button onClick={() => handleButtonClick('max1')}>max1</button>
                 </>
               )}
-              {/* T2: ↑, =, max1, max2 */}
+              {/* T2: ↑, =, max1, max2 (减仓操作) */}
               {tier === 2 && (
                 <>
                   <button onClick={() => handleButtonClick('UP')}>↑</button>
@@ -407,13 +436,12 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
                   <button onClick={() => handleButtonClick('max2')}>max2</button>
                 </>
               )}
-              {/* T3: ↑, =, max2, max3 */}
-              {tier === 3 && (
+              {/* T3+: ↑, =, maxN (dynamic) */}
+              {tier >= 3 && (
                 <>
                   <button onClick={() => handleButtonClick('UP')}>↑</button>
                   <button onClick={() => handleButtonClick('=')}>=</button>
-                  <button onClick={() => handleButtonClick('max2')}>max2</button>
-                  <button onClick={() => handleButtonClick('max3')}>max3</button>
+                  <button onClick={() => handleButtonClick(`max${tier}`)}>max{tier}</button>
                 </>
               )}
             </div>
@@ -484,7 +512,7 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
       // 减仓低于目标警告
       if (sharesNum > 0) {
         const newTier = position.tier + 1;
-        if (newTier >= 1 && newTier <= 3 && newP < TIER[newTier - 1].target - 5) {
+        if (newTier >= 1 && newTier <= getConfig().length && newP < (getConfig()[newTier - 1]?.target || 0) - 5) {
           setWarning('仓位将低于目标，建议减少股数');
         } else {
           setWarning('');
@@ -540,29 +568,26 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
                 onChange={handleSharesChange}
                 placeholder="输入股数"
               />
-              {/* T1: =, min1, min2, ↓ (减仓操作) */}
+              {/* T1: =, min1 (减仓操作) */}
               {tier === 1 && (
                 <>
                   <button onClick={() => handleButtonClick('=', false)}>=</button>
                   <button onClick={() => handleButtonClick('min1', false)}>min1</button>
-                  <button onClick={() => handleButtonClick('min2', false)}>min2</button>
-                  <button onClick={() => handleButtonClick('DOWN', false)}>↓</button>
                 </>
               )}
-              {/* T2: =, min2, min3, ↓ (减仓操作) */}
+              {/* T2: =, minX (减仓操作) */}
               {tier === 2 && (
                 <>
                   <button onClick={() => handleButtonClick('=', false)}>=</button>
                   <button onClick={() => handleButtonClick('min2', false)}>min2</button>
-                  <button onClick={() => handleButtonClick('min3', false)}>min3</button>
-                  <button onClick={() => handleButtonClick('DOWN', false)}>↓</button>
                 </>
               )}
-              {/* T3: =, min3 (减仓操作) */}
-              {tier === 3 && (
+              {/* T3+: =, minX, ↓ (减仓操作) */}
+              {tier >= 3 && (
                 <>
                   <button onClick={() => handleButtonClick('=', false)}>=</button>
-                  <button onClick={() => handleButtonClick('min3', false)}>min3</button>
+                  <button onClick={() => handleButtonClick(`min${tier}`, false)}>min{tier}</button>
+                  <button onClick={() => handleButtonClick('DOWN', false)}>↓</button>
                 </>
               )}
             </div>

@@ -1,11 +1,52 @@
 /**
  * 梯队配置常量
  */
-export const TIER = [
-  { name: '第一梯队', target: 30, limit: 1, buffer: 0, min: 25 },
+
+const CONFIG_KEY = 'portfolio-config';
+const CONFIG_LOCK_KEY = 'portfolio-config-locked';
+
+const defaultTIER = [
+  { name: '第一梯队', target: 30, limit: 1, buffer: 0, min: 25, max: 35 },
   { name: '第二梯队', target: 20, limit: 2, buffer: 1, min: 15, max: 25 },
   { name: '第三梯队', target: 10, limit: 3, buffer: 3, min: 5, max: 15 }
 ];
+
+export function getTIER() {
+  try {
+    const saved = localStorage.getItem(CONFIG_KEY);
+    if (saved) {
+      const config = JSON.parse(saved);
+      return config.tier || defaultTIER;
+    }
+  } catch (e) {}
+  return defaultTIER;
+}
+
+export function getConfig() {
+  return getTIER();
+}
+
+export function getTierConfig(tier) {
+  const tiers = getTIER();
+  if (tier < 1 || tier > tiers.length) return null;
+  return tiers[tier - 1];
+}
+
+export function saveConfig(tier) {
+  localStorage.setItem(CONFIG_KEY, JSON.stringify({ tier }));
+  localStorage.setItem(CONFIG_LOCK_KEY, 'true');
+}
+
+export function isConfigLocked() {
+  return localStorage.getItem(CONFIG_LOCK_KEY) === 'true';
+}
+
+export function resetConfig() {
+  localStorage.removeItem(CONFIG_KEY);
+  localStorage.removeItem(CONFIG_LOCK_KEY);
+}
+
+export const TIER = getTIER();
 
 /**
  * LocalStorage keys

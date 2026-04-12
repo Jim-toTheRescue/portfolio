@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from './hooks/usePortfolio';
 import { Header, Summary } from './components/Header';
 import TierCard from './components/TierCard';
 import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal } from './components/Modals';
 import { HistoryPanel, Toast } from './components/History';
+import ConfigModal from './components/ConfigModal';
+import { getConfig } from './utils/constants';
 import './styles/App.css';
 
 function App() {
@@ -34,6 +36,7 @@ function App() {
   const [showCashModal, setShowCashModal] = useState(false);
   const [showMockPriceModal, setShowMockPriceModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
 
   // 监听导入事件
@@ -79,6 +82,7 @@ function App() {
         onToggleHistory={() => setShowHistory(!showHistory)}
         onExport={exportData}
         onMockPrice={() => setShowMockPriceModal(true)}
+        onConfig={() => setShowConfigModal(true)}
       />
 
       <Summary
@@ -96,10 +100,10 @@ function App() {
       </div>
 
       <div className="main-content">
-        {[1, 2, 3].map(tier => (
+        {getConfig().map((_, i) => (
           <TierCard
-            key={tier}
-            tier={tier}
+            key={i + 1}
+            tier={i + 1}
             positions={positions}
             total={total}
             onAdd={handleAdd}
@@ -162,6 +166,11 @@ function App() {
         show={showMockPriceModal}
         onClose={() => setShowMockPriceModal(false)}
         onConfirm={applyMockPrice}
+      />
+
+      <ConfigModal
+        show={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
       />
 
       <Toast message={toast} />

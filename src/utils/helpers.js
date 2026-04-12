@@ -1,4 +1,4 @@
-import { TIER } from './constants.js';
+import { getConfig } from './constants.js';
 
 /**
  * 根据占比判定目标梯队
@@ -6,9 +6,13 @@ import { TIER } from './constants.js';
  * @returns {number} tier (1/2/3)
  */
 export function getTargetTier(percent) {
-  if (percent >= 25) return 1;
-  if (percent >= 15) return 2;
-  return 3;
+  const TIER = getConfig();
+  for (let i = 0; i < TIER.length; i++) {
+    if (percent >= TIER[i].min) {
+      return i + 1;
+    }
+  }
+  return TIER.length;
 }
 
 /**
@@ -17,6 +21,8 @@ export function getTargetTier(percent) {
  * @returns {number}
  */
 export function getUpperLimit(tier) {
+  const TIER = getConfig();
+  if (tier < 1 || tier > TIER.length) return 25;
   const t = TIER[tier - 1];
   return t.max ? t.max : t.min + 10;
 }
@@ -29,6 +35,7 @@ export function getUpperLimit(tier) {
  */
 export function getDrift(p, total) {
   if (total <= 0) return 0;
+  const TIER = getConfig();
   const percent = (p.value / total) * 100;
   const target = TIER[p.tier - 1].target;
   return percent - target;
@@ -105,6 +112,8 @@ export function roundCurrency(amount) {
  * @returns {boolean}
  */
 export function entersTier(percent, tier) {
+  const TIER = getConfig();
+  if (tier < 1 || tier > TIER.length) return false;
   const t = TIER[tier - 1];
   if (tier === 1) return percent >= t.min;
   return percent >= t.min && percent < t.max;
@@ -116,7 +125,8 @@ export function entersTier(percent, tier) {
  * @returns {string}
  */
 export function tierName(tier) {
-  if (!tier) return '-';
+  const TIER = getConfig();
+  if (!tier || tier < 1 || tier > TIER.length) return '-';
   return TIER[tier - 1].name;
 }
 

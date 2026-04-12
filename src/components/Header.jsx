@@ -1,6 +1,6 @@
 import { useRef } from 'react';
 
-function Header({ onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onMockPrice }) {
+function Header({ onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onMockPrice, onConfig }) {
   const fileInputRef = useRef(null);
 
   const handleImportClick = () => {
@@ -41,6 +41,7 @@ function Header({ onRefresh, onClearHistory, onToggleHistory, onExport, onImport
           onChange={handleFileChange}
         />
         <button className="btn btn-secondary" onClick={onMockPrice}>Mock价格</button>
+        <button className="btn btn-secondary" onClick={onConfig}>配置</button>
       </div>
     </div>
   );

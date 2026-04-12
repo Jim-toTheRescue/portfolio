@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { STORAGE_KEY, HISTORY_KEY, TIER } from '../utils/constants';
-import { totalWithCash, getTargetTier } from '../utils/helpers';
+import { STORAGE_KEY, HISTORY_KEY, getConfig } from '../utils/constants';
+import { totalWithCash, getTargetTier, getUpperLimit } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
 
 export function usePortfolio() {
@@ -50,24 +50,26 @@ export function usePortfolio() {
 
   // 保存数据
   const saveData = useCallback(() => {
+    if (!isInitialized) return;
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({ positions, cash, priceTime })
     );
-  }, [positions, cash, priceTime]);
+  }, [positions, cash, priceTime, isInitialized]);
 
   // 保存历史
   const saveHistory = useCallback(() => {
+    if (!isInitialized) return;
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-  }, [history]);
+  }, [history, isInitialized]);
 
   useEffect(() => {
     saveData();
-  }, [positions, cash]);
+  }, [positions, cash, isInitialized]);
 
   useEffect(() => {
     saveHistory();
-  }, [history]);
+  }, [history, isInitialized]);
 
   // 统一触发 autoRebalance
   useEffect(() => {
@@ -102,24 +104,44 @@ export function usePortfolio() {
     }
 
     const existing = positions.find((p) => p.symbol === symbol);
+    let shouldUseBuffer = false;
     if (!existing && total > 0) {
       const newPercent = (cost / total) * 100;
-      if (newPercent > 15) {
-        showToast('单笔超过15%将跳级，请减少股数');
+      const lastTier = getConfig().length;
+      const maxNewPercent = getUpperLimit(lastTier);
+      if (newPercent > maxNewPercent) {
+        showToast(`单笔超过${maxNewPercent}%将跳级，请减少股数`);
         return false;
       }
-      const tier3MainCount = positions.filter(p => p.tier === 3 && !p.inBuffer).length;
-      if (tier3MainCount >= 3) {
-        showToast('第三梯队已满');
-        return false;
+      const lastTierMainCount = positions.filter(p => p.tier === lastTier && !p.inBuffer).length;
+      const lastTierConfig = getConfig()[lastTier - 1];
+      if (lastTierMainCount >= lastTierConfig.limit) {
+        const lastTierBufferCount = positions.filter(p => p.tier === lastTier && p.inBuffer).length;
+        if (lastTierBufferCount < lastTierConfig.buffer) {
+          let freeSlots = 0;
+          for (let t = 1; t < lastTier; t++) {
+            const tConfig = getConfig()[t - 1];
+            const tMainCount = positions.filter(p => p.tier === t && !p.inBuffer).length;
+            freeSlots += Math.max(0, tConfig.limit - tMainCount);
+          }
+          if (freeSlots <= 0) {
+            showToast(`第${lastTier}梯队已满`);
+            return false;
+          }
+          shouldUseBuffer = true;
+        } else {
+          showToast(`第${lastTier}梯队已满`);
+          return false;
+        }
       }
     }
 
     if (existing && total > 0) {
       const newValue = existing.value + cost;
       const newPercent = (newValue / total) * 100;
-      if (existing.tier === 3 && newPercent > 15) {
-        showToast('持仓超过15%将跳级，请减少股数');
+      const existingUpperLimit = getUpperLimit(existing.tier);
+      if (newPercent > existingUpperLimit) {
+        showToast(`持仓超过${existingUpperLimit}%将跳级，请减少股数`);
         return false;
       }
     }
@@ -154,8 +176,8 @@ export function usePortfolio() {
           avgCost: price,
           price,
           value: roundCurrency(shares * price),
-          tier: 3,
-          inBuffer: false,
+          tier: getConfig().length,
+          inBuffer: shouldUseBuffer,
           priceChange: 0
         }
       ];
@@ -190,10 +212,7 @@ export function usePortfolio() {
     const newValue = pos.value + cost;
     const newPercent = (newValue / total) * 100;
 
-    let newTier;
-    if (newPercent >= 25) newTier = 1;
-    else if (newPercent >= 15) newTier = 2;
-    else newTier = 3;
+    const newTier = getTargetTier(newPercent);
     const currentTier = pos.tier;
 
     let newPositions, newCash;
@@ -204,8 +223,8 @@ export function usePortfolio() {
         return false;
       }
 
-      if (newTier >= 1 && newTier <= 3) {
-        const upperLimit = newTier === 1 ? 35 : newTier === 2 ? 25 : 15;
+      if (newTier >= 1 && newTier <= getConfig().length) {
+        const upperLimit = getUpperLimit(newTier);
         if (newPercent > upperLimit) {
           showToast('超出上限' + upperLimit + '%');
           return false;
@@ -214,14 +233,19 @@ export function usePortfolio() {
         if (newTier !== currentTier) {
           const mainCount = positions.filter(p => p.tier === newTier && !p.inBuffer).length;
           const bufferCount = positions.filter(p => p.tier === newTier && p.inBuffer).length;
-          if (mainCount >= TIER[newTier - 1].limit) {
-            if (bufferCount < TIER[newTier - 1].buffer) {
-              if (newTier === 2 && currentTier === 3) {
-                const t1t2Main = positions.filter(p => (p.tier === 1 || p.tier === 2) && !p.inBuffer).length;
-                if (t1t2Main >= 3) {
-                  showToast('目标梯队已满');
-                  return false;
-                }
+          const tierConfig = getConfig()[newTier - 1];
+          if (mainCount >= tierConfig.limit) {
+            if (bufferCount < tierConfig.buffer) {
+              // 检查缓冲位可用性：更高梯队主位空位之和
+              let freeSlots = 0;
+              for (let t = 1; t < newTier; t++) {
+                const tConfig = getConfig()[t - 1];
+                const tMainCount = positions.filter(p => p.tier === t && !p.inBuffer).length;
+                freeSlots += Math.max(0, tConfig.limit - tMainCount);
+              }
+              if (freeSlots <= 0) {
+                showToast('目标梯队已满');
+                return false;
               }
             } else {
               showToast('目标梯队已满');
@@ -474,10 +498,10 @@ export function usePortfolio() {
     const price = pos ? pos.price : 0;
     const total = totalWithCash(positions, cash);
     return calculateShares({
-      position: pos || { value: 0, tier: 3 },
+      position: pos || { value: 0, tier: getConfig().length },
       price,
       total,
-      tier: tier || 3,
+      tier: tier || getConfig().length,
       button,
       isAdd
     });
