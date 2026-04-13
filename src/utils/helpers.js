@@ -6,9 +6,10 @@ import { getConfig } from './constants.js';
  * @returns {number} tier (1/2/3)
  */
 export function getTargetTier(percent) {
+  const roundedPercent = Math.round(percent * 100) / 100;
   const TIER = getConfig();
   for (let i = 0; i < TIER.length; i++) {
-    if (percent >= TIER[i].min) {
+    if (roundedPercent >= TIER[i].min) {
       return i + 1;
     }
   }
@@ -136,5 +137,84 @@ export function tierName(tier) {
  * @returns {number}
  */
 export function getTierTarget(tier) {
+  const TIER = getConfig();
   return TIER[tier - 1]?.target || 0;
+}
+
+/**
+ * 解析股票代码的市场和货币
+ * @param {string} symbol - 股票代码，如 AAPL.US, 00700.HK, 600519.SH, 300750.SZ
+ * @returns {Object} { market, currency }
+ */
+export function parseMarket(symbol) {
+  if (!symbol) return { market: 'UNKNOWN', currency: 'CNY' };
+  const suffix = symbol.split('.').pop().toUpperCase();
+  const marketMap = {
+    'US': { market: 'US', currency: 'USD' },
+    'HK': { market: 'HK', currency: 'HKD' },
+    'SH': { market: 'SH', currency: 'CNY' },
+    'SZ': { market: 'SZ', currency: 'CNY' }
+  };
+  return marketMap[suffix] || { market: 'UNKNOWN', currency: 'CNY' };
+}
+
+/**
+ * 根据代码自动识别市场
+ * @param {string} code - 股票代码，如 AAPL, 00700, 600519, 300750
+ * @returns {string} 市场后缀，如 US, HK, SH, SZ
+ */
+export function detectMarket(code) {
+  if (!code) return 'UNKNOWN';
+  const c = code.trim().toUpperCase();
+  if (/^[A-Z]+$/.test(c)) return 'US';
+  if (/^\d{5}$/.test(c)) return 'HK';
+  if (/^6\d{5}$/.test(c)) return 'SH';
+  if (/^[03]\d{5}$/.test(c)) return 'SZ';
+  return 'UNKNOWN';
+}
+
+/**
+ * 将股票代码转换为API调用格式
+ * @param {string} code - 股票代码，如 AAPL, 00700, 600519
+ * @param {string} market - 市场，如 US, HK, SH, SZ
+ * @returns {string} API调用格式，如 usAAPL, hk00700, sh600519
+ */
+export function toApiSymbol(code, market) {
+  const marketPrefix = {
+    'US': 'us',
+    'HK': 'hk',
+    'SH': 'sh',
+    'SZ': 'sz'
+  };
+  return (marketPrefix[market] || '') + code;
+}
+
+/**
+ * 转换货币
+ * @param {number} value - 原始金额
+ * @param {string} fromCurrency - 原始货币 USD/HKD/CNY
+ * @param {string} toCurrency - 目标货币 USD/HKD/CNY
+ * @param {Object} rates - 汇率对象 { USD: 1, CNY: 7.10, HKD: 7.75 }
+ * @returns {number} 转换后的金额
+ */
+export function convertCurrency(value, fromCurrency, toCurrency, rates) {
+  if (!rates || fromCurrency === toCurrency) return value;
+  const fromRate = rates[fromCurrency] || 1;
+  const toRate = rates[toCurrency] || 1;
+  // 汇率以 USD 为基准：USD=1, CNY=7.10, HKD=7.75
+  // 转换公式：value × (toRate / fromRate)
+  // 例如：HKD 10,000 → USD = 10,000 × (1 / 7.75) = 1,290
+  return value * (toRate / fromRate);
+}
+
+/**
+ * 格式化货币显示
+ * @param {number} value - 金额
+ * @param {string} currency - 货币 USD/HKD/CNY
+ * @returns {string} 格式化后的字符串
+ */
+export function formatCurrency(value, currency) {
+  const symbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const symbol = symbols[currency] || '';
+  return `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }

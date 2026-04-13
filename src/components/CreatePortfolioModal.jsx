@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 function CreatePortfolioModal({ show, onClose, onCreate }) {
   const [name, setName] = useState('');
   const [config, setConfig] = useState([]);
+  const [settleCurrency, setSettleCurrency] = useState('CNY');
 
   const getBuffer = (config, index) => {
     if (index === 0) return 0;
@@ -12,6 +13,7 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
   useEffect(() => {
     if (show) {
       setName('');
+      setSettleCurrency('CNY');
       const initialConfig = [
         { name: '第一梯队', target: 30, limit: 1, min: 0, max: 0 },
         { name: '第二梯队', target: 20, limit: 2, min: 0, max: 0 },
@@ -62,7 +64,7 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
   };
 
   const handleCreate = () => {
-    onCreate(name.trim(), config);
+    onCreate(name.trim(), config, settleCurrency);
     onClose();
   };
 
@@ -115,6 +117,19 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
               onChange={e => setName(e.target.value)}
               placeholder="输入名称"
             />
+          </div>
+          
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label className="form-label" style={{ color: '#fff', display: 'block', marginBottom: '8px' }}>结算货币</label>
+            <select 
+              style={{ ...inputStyle, width: '200px' }}
+              value={settleCurrency}
+              onChange={e => setSettleCurrency(e.target.value)}
+            >
+              <option value="CNY">¥ 人民币 (CNY)</option>
+              <option value="USD">$ 美元 (USD)</option>
+              <option value="HKD">hk$ 港币 (HKD)</option>
+            </select>
           </div>
           
           <table className="config-table">

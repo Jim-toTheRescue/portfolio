@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from './hooks/usePortfolio';
 import { Header, Summary } from './components/Header';
 import TierCard from './components/TierCard';
-import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal } from './components/Modals';
+import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal, RatesModal } from './components/Modals';
 import { HistoryPanel, Toast } from './components/History';
 import ConfigModal from './components/ConfigModal';
 import { getConfig } from './utils/constants';
@@ -18,6 +18,8 @@ function PortfolioApp() {
     toast,
     total,
     stockValue,
+    displayCurrency,
+    exchangeRates,
     addPosition,
     adjustPosition,
     clearPosition,
@@ -29,7 +31,14 @@ function PortfolioApp() {
     importData,
     clearHistory,
     getRecommendation,
-    showToast
+    showToast,
+    fetchExchangeRates,
+    changeDisplayCurrency,
+    setManualRate,
+    getDisplayTotalWithCash,
+    getDisplayStockValue,
+    getDisplayCash,
+    cashCurrency
   } = usePortfolio();
 
   // 进入页面时自动刷新价格
@@ -46,6 +55,7 @@ function PortfolioApp() {
   const [showMockPriceModal, setShowMockPriceModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showRatesModal, setShowRatesModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
 
   // 监听导入事件
@@ -93,14 +103,18 @@ function PortfolioApp() {
         onExport={exportData}
         onMockPrice={() => setShowMockPriceModal(true)}
         onConfig={() => setShowConfigModal(true)}
+        onRates={() => setShowRatesModal(true)}
       />
 
       <Summary
-        stockValue={stockValue}
-        cash={cash}
-        total={total}
+        stockValue={getDisplayStockValue()}
+        cash={getDisplayCash()}
+        total={getDisplayTotalWithCash()}
         priceTime={priceTime}
         onCashClick={() => setShowCashModal(true)}
+        displayCurrency={displayCurrency}
+        cashCurrency={cashCurrency}
+        onCurrencyChange={changeDisplayCurrency}
       />
 
       <div className="add-section">
@@ -116,10 +130,16 @@ function PortfolioApp() {
             tier={i + 1}
             positions={positions.filter(p => p.tier === i + 1 && !p.inBuffer)}
             bufferPositions={positions.filter(p => p.tier === i + 1 && p.inBuffer)}
-            total={total}
+            cash={cash}
+            total={getDisplayTotalWithCash()}
             onAdd={handleAdd}
             onReduce={handleReduce}
             onClear={handleClear}
+            displayCurrency={displayCurrency}
+            exchangeRates={exchangeRates}
+            cashCurrency={cashCurrency}
+            getDisplayValue={getDisplayValue}
+            getDisplayTotalWithCash={getDisplayTotalWithCash}
           />
         ))}
       </div>
@@ -133,7 +153,10 @@ function PortfolioApp() {
         onClose={() => setShowAddModal(false)}
         positions={positions}
         cash={cash}
+        cashCurrency={cashCurrency}
         onAdd={addPosition}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
       />
 
       <AddPositionModal
@@ -145,6 +168,9 @@ function PortfolioApp() {
         position={selectedPosition}
         positions={positions}
         cash={cash}
+        cashCurrency={cashCurrency}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
         onAdjust={adjustPosition}
         getRecommendation={getRecommendation}
       />
@@ -158,6 +184,9 @@ function PortfolioApp() {
         position={selectedPosition}
         positions={positions}
         cash={cash}
+        cashCurrency={cashCurrency}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
         onAdjust={adjustPosition}
         getRecommendation={getRecommendation}
       />
@@ -168,6 +197,9 @@ function PortfolioApp() {
         cash={cash}
         onConfirm={fixCash}
         onConfirmWithLog={moveCash}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
+        cashCurrency={cashCurrency}
       />
 
       <MockPriceModal
@@ -183,6 +215,15 @@ function PortfolioApp() {
         show={showConfigModal}
         onClose={() => setShowConfigModal(false)}
         readOnly={true}
+        cashCurrency={cashCurrency}
+      />
+
+      <RatesModal
+        show={showRatesModal}
+        onClose={() => setShowRatesModal(false)}
+        exchangeRates={exchangeRates}
+        onFetchRates={fetchExchangeRates}
+        onSetRate={setManualRate}
       />
     </div>
   );

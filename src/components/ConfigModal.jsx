@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getConfig, saveConfig, isConfigLocked, resetConfig } from '../utils/constants';
 
-function ConfigModal({ show, onClose, readOnly = false }) {
+function ConfigModal({ show, onClose, readOnly = false, cashCurrency }) {
   const [config, setConfig] = useState(null);
   const [locked, setLocked] = useState(false);
 
@@ -90,6 +90,7 @@ function ConfigModal({ show, onClose, readOnly = false }) {
         }}>
           <span style={{ color: '#fff', fontSize: '18px', fontWeight: '600' }}>
             梯队配置 
+            {cashCurrency && <span style={{ fontSize: '13px', color: '#666', marginLeft: '12px' }}>结算货币: {cashCurrency}</span>}
             {locked && <span style={{ fontSize: '13px', color: '#f39c12', marginLeft: '12px' }}>（已锁定）</span>}
           </span>
           <button className="modal-close" onClick={onClose} style={{ color: '#888', fontSize: '24px' }}>×</button>

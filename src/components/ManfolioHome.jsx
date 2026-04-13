@@ -41,8 +41,8 @@ function ManfolioHome() {
     setPortfolios(listPortfolios());
   }, []);
 
-  const handleCreate = (name, config) => {
-    const id = createPortfolio(name, config);
+  const handleCreate = (name, config, settleCurrency) => {
+    const id = createPortfolio(name, config, settleCurrency);
     setPortfolios(listPortfolios());
     navigate('/folio/' + id);
   };
@@ -90,15 +90,15 @@ function ManfolioHome() {
             <div className="portfolio-stats">
               <div className="stat-item">
                 <span className="stat-label">市值</span>
-                <span className="stat-value">${(p.value || 0).toLocaleString()}</span>
+                <span className="stat-value">{p.cashCurrency === 'CNY' ? '¥' : p.cashCurrency === 'HKD' ? 'hk$' : '$'}{(p.value || 0).toLocaleString()}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">现金</span>
-                <span className="stat-value">${(p.cash || 0).toLocaleString()}</span>
+                <span className="stat-value">{p.cashCurrency === 'CNY' ? '¥' : p.cashCurrency === 'HKD' ? 'hk$' : '$'}{(p.cash || 0).toLocaleString()}</span>
               </div>
               <div className="stat-item">
                 <span className="stat-label">总计</span>
-                <span className="stat-value">${(p.total || 0).toLocaleString()}</span>
+                <span className="stat-value">{p.cashCurrency === 'CNY' ? '¥' : p.cashCurrency === 'HKD' ? 'hk$' : '$'}{(p.total || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>

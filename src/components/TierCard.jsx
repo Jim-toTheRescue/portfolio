@@ -1,13 +1,23 @@
 import { getConfig, getTierConfig } from '../utils/constants';
-import { tierName, getUpperLimit } from '../utils/helpers';
+import { tierName, getUpperLimit, parseMarket, convertCurrency } from '../utils/helpers';
 
-function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear, confirmClear }) {
+function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue }) {
   const tierIdx = position.tier - 1;
   const tierConfig = getConfig()[tierIdx] || getConfig()[2];
-  const drift = total > 0 ? (position.value / total) * 100 - tierConfig.target : 0;
-  const percent = total > 0 ? (position.value / total * 100).toFixed(2) : '0.00';
+  
+  // 使用结算货币计算市值和占比
+  const { currency } = parseMarket(position.symbol);
+  const settleValue = convertCurrency(position.value, currency, cashCurrency, exchangeRates);
+  const drift = total > 0 ? (settleValue / total) * 100 - tierConfig.target : 0;
+  const percent = total > 0 ? (settleValue / total * 100).toFixed(2) : '0.00';
   const priceChange = position.priceChange || 0;
   const priceChangeClass = priceChange > 0 ? 'price-up' : priceChange < 0 ? 'price-down' : '';
+  
+  // 获取显示货币的值
+  const displayValue = getDisplayValue ? getDisplayValue(position.value, position.symbol) : settleValue;
+  const displayCurrencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const displaySymbol = displayCurrencySymbols[displayCurrency] || '$';
+  const showConvertedValue = currency !== displayCurrency;
   
   const driftClass = Math.abs(drift) <= 2 ? 'drift-normal' : Math.abs(drift) <= 5 ? 'drift-warning' : 'drift-critical';
   
@@ -27,13 +37,28 @@ function PositionItem({ position, total, isBuffer, onAdd, onReduce, onClear, con
     }
   }
 
+  // 获取市场标识
+  const { market } = parseMarket(position.symbol);
+  const marketLabels = { US: '美', HK: '港', SH: '沪', SZ: '深' };
+  
+  // 货币符号
+  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const currencySymbol = currencySymbols[currency] || '$';
+
   return (
     <div className={`position-item ${isBuffer ? 'position-buffer' : ''}`}>
       <div className="position-info">
-        <div className="position-code">{position?.symbol || ''} {position?.name || ''}</div>
-        <div className="position-name">{position?.shares || 0}股 · ${(position?.value || 0).toLocaleString()}</div>
-        <div className="update-time">
-          ${position?.price || 0}
+        <div className="position-code">
+          {position?.symbol || ''} 
+          <span className="market-tag">{marketLabels[market] || ''}</span>
+          <span className="position-name-text">{position?.name || ''}</span>
+        </div>
+        <div className="position-name">
+          {position?.shares || 0}股 · {currencySymbol}{position?.price || 0}
+        </div>
+        <div className="position-value-display">
+          {currencySymbol}{(position?.value || 0).toLocaleString()}
+          {showConvertedValue && <span className="converted-value"> ≈ {displaySymbol}{displayValue.toLocaleString()}</span>}
         </div>
       </div>
 <div className="position-value">
@@ -66,18 +91,31 @@ function EmptySlot({ isBuffer }) {
   return <div className={`empty-slot ${isBuffer ? 'buffer' : ''}`}>{isBuffer ? '缓冲' : '空位'}</div>;
 }
 
-export default function TierCard({ tier, positions, total, onAdd, onReduce, onClear, confirmClear }) {
+export default function TierCard({ tier, positions, cash, total, onAdd, onReduce, onClear, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, getDisplayTotalWithCash }) {
   const tierConfig = getConfig()[tier - 1] || getConfig()[0];
   const mainPositions = positions.filter(p => p.tier === tier && !p.inBuffer);
   const bufferPositions = positions.filter(p => p.tier === tier && p.inBuffer);
   
+  // 基于结算货币计算总价值
+  const settleCash = positions.length > 0 ? positions.reduce((sum, p) => {
+    const { currency } = parseMarket(p.symbol);
+    return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+  }, 0) : 0;
+  const totalSettleValue = settleCash + cash;
+  
+  const displayTotal = getDisplayTotalWithCash();
+  
   const tierNeedsRebalance = mainPositions.some(p => {
-    const drift = total > 0 ? (p.value / total) * 100 - tierConfig.target : 0;
+    const { currency } = parseMarket(p.symbol);
+    const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    const drift = totalSettleValue > 0 ? (settleValue / totalSettleValue) * 100 - tierConfig.target : 0;
     return Math.abs(drift) > 5;
   });
   
   const tierNeedsUpgrade = mainPositions.some(p => {
-    const drift = total > 0 ? (p.value / total) * 100 - tierConfig.target : 0;
+    const { currency } = parseMarket(p.symbol);
+    const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    const drift = totalSettleValue > 0 ? (settleValue / totalSettleValue) * 100 - tierConfig.target : 0;
     return drift > 5 && p.tier > 1;
   });
   
@@ -101,12 +139,16 @@ export default function TierCard({ tier, positions, total, onAdd, onReduce, onCl
           <PositionItem
             key={p.symbol}
             position={p}
-            total={total}
+            total={totalSettleValue}
+            cash={cash}
             isBuffer={false}
             onAdd={onAdd}
             onReduce={onReduce}
             onClear={onClear}
             confirmClear={confirmClear}
+            displayCurrency={displayCurrency}
+            exchangeRates={exchangeRates}
+            getDisplayValue={getDisplayValue}
           />
         ))}
         
@@ -125,12 +167,16 @@ export default function TierCard({ tier, positions, total, onAdd, onReduce, onCl
               <PositionItem
                 key={p.symbol}
                 position={p}
-                total={total}
+                total={totalSettleValue}
+                cash={cash}
                 isBuffer={true}
                 onAdd={onAdd}
                 onReduce={onReduce}
                 onClear={onClear}
                 confirmClear={confirmClear}
+                displayCurrency={displayCurrency}
+                exchangeRates={exchangeRates}
+                getDisplayValue={getDisplayValue}
               />
             ))}
             

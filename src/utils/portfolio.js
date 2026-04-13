@@ -1,12 +1,14 @@
 import { getConfig } from './constants.js';
-import { getTargetTier } from './helpers.js';
+import { getTargetTier, parseMarket, convertCurrency } from './helpers.js';
 
-export function autoRebalance(positions, total) {
+export function autoRebalance(positions, total, cashCurrency, exchangeRates) {
   const DRIFT_THRESHOLD = 5;
   
   const needsRebalance = positions.some(p => {
     if (p.tier < 1 || p.tier > getConfig().length) return false;
-    const percent = (p.value / total) * 100;
+    const { currency } = parseMarket(p.symbol);
+    const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    const percent = (settleValue / total) * 100;
     const target = getConfig()[p.tier - 1].target;
     return Math.abs(percent - target) > DRIFT_THRESHOLD;
   });
@@ -22,13 +24,17 @@ export function autoRebalance(positions, total) {
   while (iteration < maxIterations) {
     iteration++;
 
-    const working = originalPositions.map(p => ({
-      symbol: p.symbol,
-      p: p,
-      percent: (p.value / total) * 100,
-      targetTier: getTargetTier(p.value / total * 100),
-      originalInBuffer: p.inBuffer
-    }));
+    const working = originalPositions.map(p => {
+      const { currency } = parseMarket(p.symbol);
+      const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+      return {
+        symbol: p.symbol,
+        p: p,
+        percent: (settleValue / total) * 100,
+        targetTier: getTargetTier((settleValue / total) * 100),
+        originalInBuffer: p.inBuffer
+      };
+    });
 
     working.sort((a, b) => {
       if (a.targetTier !== b.targetTier) return a.targetTier - b.targetTier;

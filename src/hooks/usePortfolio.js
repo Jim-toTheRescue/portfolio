@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig } from '../utils/manfolio';
+import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates } from '../utils/manfolio';
 import { getConfig } from '../utils/constants';
-import { totalWithCash, getTargetTier, getUpperLimit } from '../utils/helpers';
+import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
+
+const defaultRates = { USD: 1, CNY: 7.10, HKD: 7.75 };
 
 export function usePortfolio() {
   const [positions, setPositions] = useState([]);
@@ -11,6 +13,34 @@ export function usePortfolio() {
   const [priceTime, setPriceTime] = useState(null);
   const [toast, setToast] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState('USD');
+  const [exchangeRates, setExchangeRates] = useState(defaultRates);
+  const [cashCurrency, setCashCurrency] = useState('CNY');
+
+  // 初始化
+  useEffect(() => {
+    const p = getPortfolio();
+    if (p) {
+      setPositions(p.positions || []);
+      setCash(p.cash || 0);
+      setCashCurrency(p.cashCurrency || 'CNY');
+      setHistory(p.history || []);
+      setPriceTime(p.priceTime || null);
+      if (p.exchangeRates) {
+        setExchangeRates(p.exchangeRates);
+      }
+      // 默认显示货币为结算货币
+      setDisplayCurrency(p.cashCurrency || 'USD');
+      setIsInitialized(true);
+    }
+  }, []);
+
+  // 保存汇率变化
+  useEffect(() => {
+    if (isInitialized && exchangeRates !== defaultRates) {
+      updateExchangeRates(exchangeRates);
+    }
+  }, [exchangeRates]);
 
   // 显示Toast
   const showToast = useCallback((msg) => {
@@ -66,7 +96,15 @@ export function usePortfolio() {
   // 统一触发 autoRebalance
   useEffect(() => {
     if (positions.length > 0) {
-      const rebalanced = autoRebalance(positions, totalWithCash(positions, cash));
+      // 使用结算货币计算总价值
+      const totalSettleCash = cash;
+      const totalPositionsValue = positions.reduce((sum, p) => {
+        const { currency } = parseMarket(p.symbol);
+        return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+      }, 0);
+      const total = totalSettleCash + totalPositionsValue;
+      
+      const rebalanced = autoRebalance(positions, total, cashCurrency, exchangeRates);
       if (JSON.stringify(rebalanced) !== JSON.stringify(positions)) {
         // 记录梯队变动
         rebalanced.forEach((newPos) => {
@@ -81,16 +119,25 @@ export function usePortfolio() {
         setPositions(rebalanced);
       }
     }
-  }, [positions, cash]);
+  }, [positions, cash, cashCurrency, exchangeRates]);
 
   // 辅助函数
   const roundCurrency = (value) => Math.round(value * 100) / 100;
 
   // 建仓
   const addPosition = useCallback((symbol, name, shares, price) => {
-    const cost = shares * price;
-    const total = totalWithCash(positions, cash);
-    if (cost > cash) {
+    const rawCost = shares * price;
+    const { currency } = parseMarket(symbol);
+    const cost = convertCurrency(rawCost, currency, cashCurrency, exchangeRates);
+    // 使用结算货币计算总价值
+    const totalSettleCash = cash;
+    const totalPositionsValue = positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    }, 0);
+    const total = totalSettleCash + totalPositionsValue;
+    
+    if (cost > totalSettleCash) {
       showToast('资金不足');
       return false;
     }
@@ -129,7 +176,9 @@ export function usePortfolio() {
     }
 
     if (existing && total > 0) {
-      const newValue = existing.value + cost;
+      const { currency: existCurrency } = parseMarket(existing.symbol);
+      const existValueSettle = convertCurrency(existing.value, existCurrency, cashCurrency, exchangeRates);
+      const newValue = existValueSettle + cost;
       const newPercent = (newValue / total) * 100;
       const existingUpperLimit = getUpperLimit(existing.tier);
       if (newPercent > existingUpperLimit) {
@@ -199,9 +248,21 @@ export function usePortfolio() {
     const pos = positions.find((p) => p.symbol === symbol);
     if (!pos) return false;
 
-    const cost = adjShares * pos.price;
-    const total = totalWithCash(positions, cash);
-    const newValue = pos.value + cost;
+    const rawCost = adjShares * pos.price;
+    const { currency } = parseMarket(pos.symbol);
+    const cost = convertCurrency(rawCost, currency, cashCurrency, exchangeRates);
+    
+    // 使用结算货币计算总价值
+    const totalSettleCash = cash;
+    const totalPositionsValue = positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    }, 0);
+    const total = totalSettleCash + totalPositionsValue;
+    
+    const { currency: posCurrency } = parseMarket(pos.symbol);
+    const posValueSettle = convertCurrency(pos.value, posCurrency, cashCurrency, exchangeRates);
+    const newValue = posValueSettle + cost;
     const newPercent = (newValue / total) * 100;
 
     const newTier = getTargetTier(newPercent);
@@ -210,7 +271,7 @@ export function usePortfolio() {
     let newPositions, newCash;
 
     if (isAdd) {
-      if (cost > cash) {
+      if (cost > totalSettleCash) {
         showToast('资金不足');
         return false;
       }
@@ -345,7 +406,7 @@ export function usePortfolio() {
   // 校正现金（不记录日志）
   const fixCash = useCallback((newCash) => {
     setCash(roundCurrency(newCash));
-    saveCashToStorage(roundCurrency(newCash));
+    saveCashToStorage(roundCurrency(newCash));  // 不传 cashCurrency，保持原配置
   }, []);
 
   // 出入金（记录日志）
@@ -353,13 +414,13 @@ export function usePortfolio() {
     const oldCash = cash;
     const diff = newCash - oldCash;
     setCash(roundCurrency(newCash));
-    saveCashToStorage(roundCurrency(newCash));
+    saveCashToStorage(roundCurrency(newCash));  // 不传 cashCurrency，保持原配置
     
     if (diff !== 0) {
       const action = diff > 0 ? '入金' : '出金';
       log(makeLog('cash', '-', '-', action, Math.abs(diff), roundCurrency(newCash), 0, 0, 0));
     }
-  }, [cash]);
+  }, [cash, log]);
 
   // 刷新价格
   const refreshPrices = useCallback(async () => {
@@ -368,12 +429,15 @@ export function usePortfolio() {
       return;
     }
 
-    const symbols = positions.map((p) => `us${p.symbol}`).join(',');
+    // 转换为API格式
+    const symbols = positions.map((p) => toApiSymbol(p.symbol.split('.')[0], parseMarket(p.symbol).market)).join(',');
     const url = `https://qt.gtimg.cn/q=${symbols}`;
 
     try {
       const response = await fetch(url);
-      const text = await response.text();
+      const arrayBuffer = await response.arrayBuffer();
+      const decoder = new TextDecoder('GBK');
+      const text = decoder.decode(arrayBuffer);
       const stocks = text.split(';');
       let updated = false;
       let priceTime = null;
@@ -383,11 +447,30 @@ export function usePortfolio() {
       stocks.forEach((stockData) => {
         if (!stockData || stockData.indexOf('~') < 0) return;
         const fields = stockData.split('~');
-        if (fields.length < 10) return;
+        if (fields.length < 4) return;
 
-        const symbol = fields[0].replace('v_us', '').toUpperCase();
+        // 解析symbol (v_sh600519 -> 600519.SH)
+        const key = fields[0];
+        const match = key.match(/v_(\w+)/);
+        if (!match) return;
+        const apiSymbol = match[1];
+        
+        // 转换回存储格式
+        let symbol;
+        if (apiSymbol.startsWith('us')) {
+          symbol = apiSymbol.replace('us', '') + '.US';
+        } else if (apiSymbol.startsWith('hk')) {
+          symbol = apiSymbol.replace('hk', '') + '.HK';
+        } else if (apiSymbol.startsWith('sh')) {
+          symbol = apiSymbol.replace('sh', '') + '.SH';
+        } else if (apiSymbol.startsWith('sz')) {
+          symbol = apiSymbol.replace('sz', '') + '.SZ';
+        } else {
+          symbol = apiSymbol;
+        }
+
         const price = parseFloat(fields[3]);
-        const change = parseFloat(fields[31]);
+        const change = parseFloat(fields[31] || 0);
         const timeStr = fields[30];
 
         if (timeStr && timeStr.length >= 19) {
@@ -494,17 +577,113 @@ export function usePortfolio() {
   // 获取推荐股数
   const getRecommendation = useCallback((symbol, tier, button, isAdd) => {
     const pos = positions.find(p => p.symbol === symbol);
-    const price = pos ? pos.price : 0;
-    const total = totalWithCash(positions, cash);
+    const rawPrice = pos ? pos.price : 0;
+    // 使用结算货币计算总价值
+    const totalSettleCash = cash;
+    const totalPositionsValue = positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    }, 0);
+    const total = totalSettleCash + totalPositionsValue;
+    // 转换持仓价值为结算货币
+    const posValue = pos ? convertCurrency(pos.value, parseMarket(pos.symbol).currency, cashCurrency, exchangeRates) : 0;
+    // 转换价格也为结算货币
+    const price = pos ? convertCurrency(1, parseMarket(pos.symbol).currency, cashCurrency, exchangeRates) * rawPrice : 0;
     return calculateShares({
-      position: pos || { value: 0, tier: getConfig().length },
+      position: pos ? { ...pos, value: posValue } : { value: 0, tier: getConfig().length },
       price,
       total,
       tier: tier || getConfig().length,
       button,
       isAdd
     });
-  }, [positions, cash]);
+  }, [positions, cash, cashCurrency, exchangeRates]);
+
+  // 获取汇率
+  const fetchExchangeRates = useCallback(async () => {
+    try {
+      const response = await fetch('https://open.er-api.com/v6/latest/USD');
+      const data = await response.json();
+      if (data.rates) {
+        const rates = {
+          USD: 1,
+          CNY: data.rates.CNY || 7.10,
+          HKD: data.rates.HKD || 7.75
+        };
+        setExchangeRates(rates);
+        showToast('汇率已更新');
+      }
+    } catch (e) {
+      showToast('获取汇率失败');
+    }
+  }, [showToast]);
+
+  // 切换显示货币
+  const changeDisplayCurrency = useCallback((currency) => {
+    setDisplayCurrency(currency);
+  }, []);
+
+  // 手动设置汇率
+  const setManualRate = useCallback((currency, rate) => {
+    setExchangeRates(prev => ({
+      ...prev,
+      [currency]: rate
+    }));
+    showToast(`汇率 ${currency} 已更新`);
+  }, [showToast]);
+
+  // 计算转换后的总资产
+  const getDisplayTotal = useCallback(() => {
+    // 现金默认是CNY，转换为displayCurrency
+    const convertedCash = convertCurrency(cash, 'CNY', displayCurrency, exchangeRates);
+    // 持仓市值需要按各自货币转换
+    const convertedStockValue = positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, displayCurrency, exchangeRates);
+    }, 0);
+    return convertedCash + convertedStockValue;
+  }, [cash, positions, displayCurrency, exchangeRates]);
+
+  // 计算转换后的市值
+  const getDisplayValue = useCallback((value, symbol) => {
+    const { currency } = parseMarket(symbol);
+    return convertCurrency(value, currency, displayCurrency, exchangeRates);
+  }, [displayCurrency, exchangeRates]);
+
+  // 计算总市值（基于显示货币）
+  const getDisplayStockValue = useCallback(() => {
+    return positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, displayCurrency, exchangeRates);
+    }, 0);
+  }, [positions, displayCurrency, exchangeRates]);
+
+  // 计算总资产（基于显示货币）
+  const getDisplayTotalWithCash = useCallback(() => {
+    const stockValue = getDisplayStockValue();
+    const convertedCash = convertCurrency(cash, cashCurrency, displayCurrency, exchangeRates);
+    return stockValue + convertedCash;
+  }, [cash, cashCurrency, getDisplayStockValue, displayCurrency, exchangeRates]);
+
+  // 计算现金（基于显示货币）
+  const getDisplayCash = useCallback(() => {
+    return convertCurrency(cash, cashCurrency, displayCurrency, exchangeRates);
+  }, [cash, cashCurrency, displayCurrency, exchangeRates]);
+
+  // 保存现金时使用 cashCurrency
+  const saveCashToStorageWithCurrency = useCallback((newCash, newCashCurrency) => {
+    saveCashToStorage(newCash, newCashCurrency);
+  }, []);
+
+  // 计算偏离度（基于结算货币）
+  const getDisplayDrift = useCallback((position, total) => {
+    const { currency } = parseMarket(position.symbol);
+    const settleValue = convertCurrency(position.value, currency, cashCurrency, exchangeRates);
+    if (total <= 0) return 0;
+    const percent = (settleValue / total) * 100;
+    const target = getConfig()[position.tier - 1].target;
+    return percent - target;
+  }, [cashCurrency, exchangeRates]);
 
   // 计算总市值
   const stockValue = positions.reduce((sum, p) => sum + p.value, 0);
@@ -519,6 +698,9 @@ export function usePortfolio() {
     isInitialized,
     total,
     stockValue,
+    displayCurrency,
+    exchangeRates,
+    cashCurrency,
     addPosition,
     adjustPosition,
     clearPosition,
@@ -530,6 +712,15 @@ export function usePortfolio() {
     importData,
     clearHistory,
     getRecommendation,
-    showToast
+    showToast,
+    fetchExchangeRates,
+    changeDisplayCurrency,
+    setManualRate,
+    getDisplayTotal,
+    getDisplayValue,
+    getDisplayStockValue,
+    getDisplayTotalWithCash,
+    getDisplayCash,
+    getDisplayDrift
   };
 }

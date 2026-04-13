@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getConfig, getTierConfig } from '../utils/constants';
-import { getUpperLimit, getTargetTier, totalWithCash } from '../utils/helpers';
+import { getUpperLimit, getTargetTier, totalWithCash, detectMarket, toApiSymbol, parseMarket, convertCurrency } from '../utils/helpers';
 import { calculateShares } from '../utils/portfolio';
 
 // 新建仓位弹窗
-function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) {
+function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getRecommendation, displayCurrency, exchangeRates }) {
   const [symbol, setSymbol] = useState('');
   const [name, setName] = useState('输入代码后自动获取');
   const [fetchedPrice, setFetchedPrice] = useState(0);
@@ -12,6 +12,8 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
   const [cost, setCost] = useState(0);
   const [costPercent, setCostPercent] = useState(0);
   const [warning, setWarning] = useState('');
+  const [market, setMarket] = useState('US');
+  const symbolInputRef = useRef(null);
 
   useEffect(() => {
     if (!show) {
@@ -22,30 +24,41 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
       setCost(0);
       setCostPercent(0);
       setWarning('');
+      setMarket('US');
     }
   }, [show]);
 
   const handleSymbolChange = (e) => {
     const value = e.target.value.trim().toUpperCase();
     setSymbol(value);
-    if (value) {
-      setName('获取中...');
-      fetchQuote(value);
-    } else {
+    
+    // 自动识别市场
+    const detectedMarket = detectMarket(value);
+    setMarket(detectedMarket);
+    
+    if (!value) {
       setName('输入代码后自动获取');
       setFetchedPrice(0);
     }
   };
 
-  const fetchQuote = async (sym) => {
+  const handleSymbolBlur = () => {
+    if (symbol) {
+      setName('获取中...');
+      fetchQuote(symbol, market);
+    }
+  };
+
+  const fetchQuote = async (code, detectedMarket) => {
     try {
-      const response = await fetch(`https://qt.gtimg.cn/q=us${sym}`);
+      const apiSymbol = toApiSymbol(code, detectedMarket);
+      const response = await fetch(`https://qt.gtimg.cn/q=${apiSymbol}`);
       const arrayBuffer = await response.arrayBuffer();
       const decoder = new TextDecoder('GBK');
       const text = decoder.decode(arrayBuffer);
       if (text && text.indexOf('~') > 0) {
         const fields = text.split('~');
-        setName(fields[1] || sym);
+        setName(fields[1] || code);
         setFetchedPrice(parseFloat(fields[3]));
       } else {
         setName('未找到');
@@ -55,12 +68,39 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
     }
   };
 
+  // 计算转换后的金额（转换为显示货币）
+  const getDisplayCost = () => {
+    if (!fetchedPrice || !shares) return null;
+    const { currency } = parseMarket('.' + market);
+    const converted = convertCurrency(cost, currency, displayCurrency, exchangeRates);
+    const symbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+    const symbol = symbols[displayCurrency] || '$';
+    return `${symbol}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const getRate = () => {
+    const { currency } = parseMarket('.' + market);
+    if (currency === displayCurrency) return null;
+    const fromRate = exchangeRates[currency] || 1;
+    const toRate = exchangeRates[displayCurrency] || 1;
+    return (toRate / fromRate).toFixed(4);
+  };
+
   const updateCost = (sharesVal) => {
     const sharesNum = parseInt(sharesVal) || 0;
-    const total = totalWithCash(positions, cash);
-    const costVal = sharesNum * fetchedPrice;
-    const percent = total > 0 ? ((costVal / total) * 100).toFixed(2) : 0;
-    setCost(costVal);
+    // 使用结算货币计算总价值（现金已经是结算货币）
+    const totalSettleCash = cash;
+    const totalPositionsValue = positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    }, 0);
+    const total = totalSettleCash + totalPositionsValue;
+    const rawCostVal = sharesNum * fetchedPrice;
+    const { currency } = parseMarket('.' + market);
+    const costVal = convertCurrency(rawCostVal, currency, cashCurrency, exchangeRates);
+    const percentValue = total > 0 ? (costVal / total) * 100 : 0;
+    const percent = (Math.floor(percentValue * 100) / 100).toFixed(2);
+    setCost(rawCostVal);
     setCostPercent(percent);
     
     const existing = positions.find(p => p.symbol === symbol);
@@ -130,7 +170,13 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
 
   const handleRecommend = (type) => {
     if (fetchedPrice <= 0) return;
-    const total = totalWithCash(positions, cash);
+    // 使用结算货币计算总价值
+    const totalSettleCash = cash;
+    const totalPositionsValue = positions.reduce((sum, p) => {
+      const { currency } = parseMarket(p.symbol);
+      return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    }, 0);
+    const total = totalSettleCash + totalPositionsValue;
     const lastTierConfig = getConfig()[getConfig().length - 1];
     
     // 使用与 calculateShares 相同的逻辑
@@ -158,7 +204,8 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
         let bestShares = 0;
         let bestDiff = Infinity;
         for (let s = 1; s <= 10000; s++) {
-          const newValue = s * price;
+          const rawValue = s * price;
+          const newValue = convertCurrency(rawValue, market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY', cashCurrency, exchangeRates);
           const newPercent = (newValue / total) * 100;
           if (newPercent >= limit) break;
           const diff = limit - newPercent;
@@ -180,7 +227,8 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
         let bestShares = 0;
         let bestDiff = Infinity;
         for (let s = 1; s <= 10000; s++) {
-          const newValue = s * price;
+          const rawValue = s * price;
+          const newValue = convertCurrency(rawValue, market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY', cashCurrency, exchangeRates);
           const newPercent = (newValue / total) * 100;
           
           if (newPercent < limit) continue;
@@ -204,7 +252,8 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
         let bestShares = 0;
         let bestDiff = Infinity;
         for (let s = 1; s <= 10000; s++) {
-          const newValue = s * price;
+          const rawValue = s * price;
+          const newValue = convertCurrency(rawValue, market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY', cashCurrency, exchangeRates);
           const newPercent = (newValue / total) * 100;
           const diff = Math.abs(newPercent - targetPercent);
           if (diff < bestDiff) {
@@ -223,7 +272,8 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
   const handleConfirm = () => {
     const sharesNum = parseInt(shares) || 0;
     if (!symbol || sharesNum <= 0 || fetchedPrice <= 0) return;
-    onAdd(symbol, name, sharesNum, fetchedPrice);
+    const fullSymbol = symbol + '.' + market;
+    onAdd(fullSymbol, name, sharesNum, fetchedPrice);
     onClose();
   };
 
@@ -240,14 +290,17 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
           <div className="form-group">
             <label className="form-label">快速选择</label>
             <div className="quick-buttons">
-              {['GOOG', 'AAPL', 'NVDA', 'MSFT', 'AMZN', 'META'].map(s => (
-                <button key={s} onClick={() => handleSymbolChange({ target: { value: s } })}>{s}</button>
+              {['GOOG', 'AAPL', 'NVDA', 'MSFT', 'AMZN', 'META', '00700', '300750', '600519'].map(s => (
+                <button key={s} onClick={() => {
+                  handleSymbolChange({ target: { value: s } });
+                  symbolInputRef.current?.focus();
+                }}>{s}</button>
               ))}
             </div>
           </div>
           <div className="form-group">
             <label className="form-label">股票代码 *</label>
-            <input className="form-input" value={symbol} onChange={handleSymbolChange} placeholder="AAPL" />
+            <input ref={symbolInputRef} className="form-input" value={symbol} onChange={handleSymbolChange} onBlur={handleSymbolBlur} placeholder="AAPL" />
           </div>
           <div className="form-group">
             <label className="form-label">名称</label>
@@ -268,7 +321,13 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
           </div>
           <div className="form-group">
             <label className="form-label">交易金额</label>
-            <div className="cost-display">${(cost || 0).toLocaleString()} <span className="percent">({costPercent || 0}%)</span></div>
+            <div className="cost-display">
+              {market === 'SH' || market === 'SZ' ? '¥' : market === 'US' ? '$' : market === 'HK' ? 'hk$' : '$'}{(cost || 0).toLocaleString()} 
+              {getDisplayCost() && (
+                <span className="percent"> ≈ {getDisplayCost()}</span>
+              )}
+              <span className="percent"> ({costPercent || 0}%)</span>
+            </div>
           </div>
           {warning && (
             <div className="form-group">
@@ -286,7 +345,7 @@ function AddModal({ show, onClose, positions, cash, onAdd, getRecommendation }) 
   );
 }
 
-function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, getRecommendation }) {
+function AddPositionModal({ show, onClose, position, positions, cash, cashCurrency, displayCurrency, exchangeRates, onAdjust, getRecommendation }) {
   const [shares, setShares] = useState('');
   const [cost, setCost] = useState(0);
   const [costPercent, setCostPercent] = useState(0);
@@ -305,31 +364,44 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
 
   useEffect(() => {
     if (position && show) {
-      const total = totalWithCash(positions, cash);
-      const sharesNum = parseInt(shares) || 0;
-      const costVal = sharesNum * position.price;
-      const percent = total > 0 ? ((costVal / total) * 100).toFixed(2) : 0;
-      setCost(costVal);
-      setCostPercent(percent);
+      // 使用结算货币计算总价值
+      const totalSettleCash = cash;
+      const totalPositionsValue = positions.reduce((sum, p) => {
+        const { currency } = parseMarket(p.symbol);
+        return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+      }, 0);
+      const total = totalSettleCash + totalPositionsValue;
       
-      const newValue = position.value + costVal;
-      const newP = total > 0 ? ((newValue / total) * 100).toFixed(1) : 0;
+      const sharesNum = parseInt(shares) || 0;
+      const rawCostVal = sharesNum * position.price;
+      const { currency } = parseMarket(position.symbol);
+      const costVal = convertCurrency(rawCostVal, currency, cashCurrency, exchangeRates);
+      const percentValue = total > 0 ? (costVal / total) * 100 : 0;
+      const percent = (Math.floor(percentValue * 100) / 100).toFixed(2);
+      
+      const rawNewValue = position.value + rawCostVal;
+      const newValue = convertCurrency(rawNewValue, currency, cashCurrency, exchangeRates);
+      const newPercentValue = total > 0 ? (newValue / total) * 100 : 0;
+      const newP = (Math.floor(newPercentValue * 100) / 100).toFixed(2);
+      
+      setCost(rawCostVal);
+      setCostPercent(percent);
       setNewPercent(newP);
       setNewShares(position.shares + sharesNum);
       
-      if (costVal > cash) {
+      if (costVal > totalSettleCash) {
         setWarning('资金不足');
       } else if (sharesNum > 0) {
-        const newPNum = parseFloat(newP);
+        const newPNum = newPercentValue;
         const newTier = getTargetTier(newPNum);
         
         const currentTier = position.tier;
         // 超出目标梯队上限检查
         if (newTier >= 1 && newTier <= getConfig().length) {
           const upperLimit = getUpperLimit(newTier);
-          if (newP > upperLimit) {
+          if (newPercentValue > upperLimit) {
             setWarning('超出上限' + upperLimit + '%');
-          } else if (newP > (getConfig()[newTier - 1]?.target || getConfig()[0]?.target || 0) + 5) {
+          } else if (newPercentValue > (getConfig()[newTier - 1]?.target || getConfig()[0]?.target || 0) + 5) {
             setWarning('仓位将超过目标，建议减少股数');
           } else {
             // 目标梯队已满检查 - 只有晋级时才检查，原地加仓不检查
@@ -340,21 +412,17 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
               
               if (mainCount >= tierConfig.limit) {
                 if (bufferCount < tierConfig.buffer) {
-                  // 检查能否进缓冲位：所有更高梯队主位空位之和
-                  if (newTier === getConfig().length && !existing) {
-                    let freeSlots = 0;
-                    for (let t = 1; t < newTier; t++) {
-                      const config = getConfig()[t - 1];
-                      const count = positions.filter(p => p.tier === t && !p.inBuffer).length;
-                      freeSlots += Math.max(0, config.limit - count);
-                    }
-                    if (freeSlots > 0) {
-                      setWarning('');
-                    } else {
-                      setWarning('目标梯队已满');
-                    }
-                  } else {
+                  // 检查能否进缓冲位：更高梯队主位空位之和
+                  let freeSlots = 0;
+                  for (let t = 1; t < newTier; t++) {
+                    const config = getConfig()[t - 1];
+                    const count = positions.filter(p => p.tier === t && !p.inBuffer).length;
+                    freeSlots += Math.max(0, config.limit - count);
+                  }
+                  if (freeSlots > 0) {
                     setWarning('');
+                  } else {
+                    setWarning('目标梯队已满');
                   }
                 } else {
                   setWarning('目标梯队已满');
@@ -373,7 +441,7 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
         setWarning('');
       }
     }
-  }, [shares, position, positions, cash, show]);
+  }, [shares, position, positions, cash, show, cashCurrency, exchangeRates]);
 
   const handleSharesChange = (e) => {
     setShares(e.target.value);
@@ -392,22 +460,44 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
     onClose();
   };
 
+  // 计算转换后的金额（转换为显示货币）
+  const getDisplayCost = () => {
+    if (!cost) return null;
+    const converted = convertCurrency(cost, posCurrency, displayCurrency, exchangeRates);
+    return `${displaySymbol}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   if (!show || !position) return null;
 
-  const total = totalWithCash(positions, cash);
-  const currentPercent = total > 0 ? (position.value / total * 100).toFixed(1) : 0;
+  // 使用结算货币计算总价值和当前占比
+  const totalSettleCash = cash;
+  const totalPositionsValue = positions.reduce((sum, p) => {
+    const { currency } = parseMarket(p.symbol);
+    return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+  }, 0);
+  const total = totalSettleCash + totalPositionsValue;
+  const { currency: posCurrency } = parseMarket(position.symbol);
+  const posValueSettle = convertCurrency(position.value, posCurrency, cashCurrency, exchangeRates);
+  const currentPercent = total > 0 ? (Math.floor((posValueSettle / total) * 10000) / 100).toFixed(2) : '0.00';
   const tier = position.tier;
+  // 显示用原生货币符号
+  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const posSymbol = currencySymbols[posCurrency] || '$';
+  // 显示货币转换
+  const displaySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const displaySymbol = displaySymbols[displayCurrency] || '$';
+  const displayValue = convertCurrency(position.value, posCurrency, displayCurrency, exchangeRates);
 
   return (
     <div className="modal-overlay show" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>加仓 {position.symbol}</span>
+          <span>加仓 {position.symbol} {position.name}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <div style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
-            当前: {position?.shares || 0}股 ${(position?.value || 0).toLocaleString()} ({currentPercent || 0}%)
+            当前: {position?.shares || 0}股 · {posSymbol}{(position?.value || 0).toLocaleString()}{posCurrency !== displayCurrency ? ` ≈ ${displaySymbol}${displayValue.toLocaleString()}` : ''} ({currentPercent || 0}%)
           </div>
           
           <div className="form-group">
@@ -450,7 +540,11 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
           <div className="form-group">
             <label className="form-label">交易金额</label>
             <div className="cost-display">
-              ${(cost || 0).toLocaleString()} <span className="percent">({costPercent || 0}%)</span>
+              {posSymbol}{(cost || 0).toLocaleString()}
+              {posCurrency !== displayCurrency && getDisplayCost() && (
+                <span className="percent"> ≈ {getDisplayCost()}</span>
+              )}
+              <span className="percent"> ({costPercent || 0}%)</span>
             </div>
           </div>
           
@@ -477,7 +571,7 @@ function AddPositionModal({ show, onClose, position, positions, cash, onAdjust, 
   );
 }
 
-function ReducePositionModal({ show, onClose, position, positions, cash, onAdjust, getRecommendation }) {
+function ReducePositionModal({ show, onClose, position, positions, cash, cashCurrency, displayCurrency, exchangeRates, onAdjust, getRecommendation }) {
   const [shares, setShares] = useState('');
   const [cost, setCost] = useState(0);
   const [costPercent, setCostPercent] = useState(0);
@@ -497,15 +591,28 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
 
   useEffect(() => {
     if (position && show) {
-      const total = totalWithCash(positions, cash);
-      const sharesNum = parseInt(shares) || 0;
-      const costVal = sharesNum * position.price;
-      const percent = total > 0 ? ((costVal / total) * 100).toFixed(2) : 0;
-      setCost(costVal);
-      setCostPercent(percent);
+      // 使用结算货币计算总价值
+      const totalSettleCash = cash;
+      const totalPositionsValue = positions.reduce((sum, p) => {
+        const { currency } = parseMarket(p.symbol);
+        return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+      }, 0);
+      const total = totalSettleCash + totalPositionsValue;
       
-      const newValue = position.value - costVal;
-      const newP = total > 0 ? ((newValue / total) * 100).toFixed(1) : 0;
+      const sharesNum = parseInt(shares) || 0;
+      const rawCostVal = sharesNum * position.price;
+      const { currency } = parseMarket(position.symbol);
+      const costVal = convertCurrency(rawCostVal, currency, cashCurrency, exchangeRates);
+      const percentValue = total > 0 ? (costVal / total) * 100 : 0;
+      const percent = (Math.floor(percentValue * 100) / 100).toFixed(2);
+      
+      const rawNewValue = position.value - rawCostVal;
+      const newValue = convertCurrency(rawNewValue, currency, cashCurrency, exchangeRates);
+      const newPercentValue = total > 0 ? (newValue / total) * 100 : 0;
+      const newP = (Math.floor(newPercentValue * 100) / 100).toFixed(2);
+      
+      setCost(rawCostVal);
+      setCostPercent(percent);
       setNewPercent(newP);
       setNewShares(position.shares - sharesNum);
       
@@ -521,7 +628,7 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
         setWarning('');
       }
     }
-  }, [shares, position, positions, cash, show]);
+  }, [shares, position, positions, cash, show, cashCurrency, exchangeRates]);
 
   const handleSharesChange = (e) => {
     setShares(e.target.value);
@@ -540,22 +647,44 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
     onClose();
   };
 
+  // 计算转换后的金额（转换为显示货币）
+  const getDisplayCost = () => {
+    if (!cost) return null;
+    const converted = convertCurrency(cost, posCurrency, displayCurrency, exchangeRates);
+    return `${displaySymbol}${converted.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
   if (!show || !position) return null;
 
-  const total = totalWithCash(positions, cash);
-  const currentPercent = total > 0 ? (position.value / total * 100).toFixed(1) : 0;
+  // 使用结算货币计算总价值和当前占比
+  const totalSettleCash = cash;
+  const totalPositionsValue = positions.reduce((sum, p) => {
+    const { currency } = parseMarket(p.symbol);
+    return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+  }, 0);
+  const total = totalSettleCash + totalPositionsValue;
+  const { currency: posCurrency } = parseMarket(position.symbol);
+  const posValueSettle = convertCurrency(position.value, posCurrency, cashCurrency, exchangeRates);
+  const currentPercent = total > 0 ? (Math.floor((posValueSettle / total) * 10000) / 100).toFixed(2) : '0.00';
   const tier = position.tier;
+  // 显示用原生货币符号
+  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const posSymbol = currencySymbols[posCurrency] || '$';
+  // 显示货币转换
+  const displaySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const displaySymbol = displaySymbols[displayCurrency] || '$';
+  const displayValue = convertCurrency(position.value, posCurrency, displayCurrency, exchangeRates);
 
   return (
     <div className="modal-overlay show" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>减仓 {position.symbol}</span>
+          <span>减仓 {position.symbol} {position.name}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <div style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
-            当前: {position?.shares || 0}股 ${(position?.value || 0).toLocaleString()} ({currentPercent || 0}%)
+            当前: {position?.shares || 0}股 · {posSymbol}{(position?.value || 0).toLocaleString()}{posCurrency !== displayCurrency ? ` ≈ ${displaySymbol}${displayValue.toLocaleString()}` : ''} ({currentPercent || 0}%)
           </div>
           
           <div className="form-group">
@@ -582,7 +711,11 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
           <div className="form-group">
             <label className="form-label">交易金额</label>
             <div className="cost-display">
-              ${(cost || 0).toLocaleString()} <span className="percent">({costPercent || 0}%)</span>
+              {posSymbol}{(cost || 0).toLocaleString()}
+              {posCurrency !== displayCurrency && getDisplayCost() && (
+                <span className="percent"> ≈ {getDisplayCost()}</span>
+              )}
+              <span className="percent"> ({costPercent || 0}%)</span>
             </div>
           </div>
           
@@ -602,7 +735,7 @@ function ReducePositionModal({ show, onClose, position, positions, cash, onAdjus
   );
 }
 
-function CashModal({ show, onClose, cash, onConfirm, onConfirmWithLog }) {
+function CashModal({ show, onClose, cash, onConfirm, onConfirmWithLog, displayCurrency, exchangeRates, cashCurrency }) {
   const [value, setValue] = useState('');
 
   useEffect(() => {
@@ -612,33 +745,37 @@ function CashModal({ show, onClose, cash, onConfirm, onConfirmWithLog }) {
   }, [show, cash]);
 
   const handleConfirm = (withLog = false) => {
-    const newCash = parseFloat(value) || 0;
+    const inputValue = parseFloat(value) || 0;
+    // 直接按结算货币存储，不转换
     if (withLog && onConfirmWithLog) {
-      onConfirmWithLog(newCash);
+      onConfirmWithLog(inputValue);
     } else {
-      onConfirm(newCash);
+      onConfirm(inputValue);
     }
     onClose();
   };
 
   if (!show) return null;
 
+  const currencySymbol = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const symbol = currencySymbol[cashCurrency] || '$';
+
   return (
     <div className="modal-overlay show" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <span>修改现金</span>
+          <span>修改现金 ({cashCurrency})</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           <div className="form-group">
-            <label className="form-label">现金 (美元)</label>
+            <label className="form-label">现金 ({symbol})</label>
             <input
               type="number"
               className="form-input"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="100000"
+              placeholder="0"
             />
           </div>
         </div>
@@ -700,4 +837,77 @@ function MockPriceModal({ show, onClose, onConfirm }) {
   );
 }
 
-export { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal };
+// 汇率设置弹窗
+function RatesModal({ show, onClose, exchangeRates, onFetchRates, onSetRate }) {
+  const [usdRate, setUsdRate] = useState('');
+  const [cnyRate, setCnyRate] = useState('');
+  const [hkdRate, setHkdRate] = useState('');
+
+  useEffect(() => {
+    if (show && exchangeRates) {
+      setUsdRate(exchangeRates.USD || '');
+      setCnyRate(exchangeRates.CNY || '');
+      setHkdRate(exchangeRates.HKD || '');
+    }
+  }, [show, exchangeRates]);
+
+  const handleFetch = () => {
+    onFetchRates();
+  };
+
+  const handleSave = () => {
+    if (usdRate) onSetRate('USD', parseFloat(usdRate));
+    if (cnyRate) onSetRate('CNY', parseFloat(cnyRate));
+    if (hkdRate) onSetRate('HKD', parseFloat(hkdRate));
+    onClose();
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3>汇率设置</h3>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div className="form-group">
+            <button className="btn btn-primary" onClick={handleFetch} style={{ marginBottom: '16px' }}>
+              自动获取汇率
+            </button>
+          </div>
+          <div className="form-group">
+            <label>USD (1 USD = ? CNY)</label>
+            <input
+              type="number"
+              value={usdRate}
+              onChange={e => setUsdRate(e.target.value)}
+              placeholder={exchangeRates?.USD || '7.10'}
+            />
+          </div>
+          <div className="form-group">
+            <label>HKD (1 HKD = ? CNY)</label>
+            <input
+              type="number"
+              value={hkdRate}
+              onChange={e => setHkdRate(e.target.value)}
+              placeholder={exchangeRates?.HKD || '0.92'}
+            />
+          </div>
+          {exchangeRates?.lastUpdate && (
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+              更新时间：{exchangeRates.lastUpdate}
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-primary" onClick={handleSave}>保存</button>
+          <button className="btn btn-secondary" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal, RatesModal };

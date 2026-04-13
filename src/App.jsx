@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from './hooks/usePortfolio';
 import { Header, Summary } from './components/Header';
 import TierCard from './components/TierCard';
-import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal } from './components/Modals';
+import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal, RatesModal } from './components/Modals';
 import { HistoryPanel, Toast } from './components/History';
 import ConfigModal from './components/ConfigModal';
 import { getConfig } from './utils/constants';
@@ -45,6 +45,9 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     toast,
     total,
     stockValue,
+    displayCurrency,
+    exchangeRates,
+    cashCurrency,
     addPosition,
     adjustPosition,
     clearPosition,
@@ -56,7 +59,14 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     importData,
     clearHistory,
     getRecommendation,
-    showToast
+    showToast,
+    fetchExchangeRates,
+    changeDisplayCurrency,
+    setManualRate,
+    getDisplayTotalWithCash,
+    getDisplayStockValue,
+    getDisplayCash,
+    getDisplayValue
   } = usePortfolio();
 
   // 进入页面时自动刷新价格
@@ -77,6 +87,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
   const [showMockPriceModal, setShowMockPriceModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showRatesModal, setShowRatesModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
 
   useEffect(() => {
@@ -129,14 +140,18 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onExport={exportData}
         onMockPrice={() => setShowMockPriceModal(true)}
         onConfig={() => setShowConfigModal(true)}
+        onRates={() => setShowRatesModal(true)}
       />
 
       <Summary
-        stockValue={stockValue}
-        cash={cash}
-        total={total}
+        stockValue={getDisplayStockValue()}
+        cash={getDisplayCash()}
+        total={getDisplayTotalWithCash()}
         priceTime={priceTime}
         onCashClick={() => setShowCashModal(true)}
+        displayCurrency={displayCurrency}
+        cashCurrency={cashCurrency}
+        onCurrencyChange={changeDisplayCurrency}
       />
 
       <div className="add-section">
@@ -151,11 +166,17 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             key={i + 1}
             tier={i + 1}
             positions={positions}
-            total={total}
+            cash={cash}
+            total={getDisplayTotalWithCash()}
             onAdd={handleAdd}
             onReduce={handleReduce}
             onClear={handleClear}
             confirmClear={confirmClear}
+            displayCurrency={displayCurrency}
+            exchangeRates={exchangeRates}
+            cashCurrency={cashCurrency}
+            getDisplayValue={getDisplayValue}
+            getDisplayTotalWithCash={getDisplayTotalWithCash}
           />
         ))}
       </div>
@@ -172,8 +193,11 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onClose={() => setShowAddModal(false)}
         positions={positions}
         cash={cash}
+        cashCurrency={cashCurrency}
         onAdd={addPosition}
         getRecommendation={getRecommendation}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
       />
 
       <AddPositionModal
@@ -185,6 +209,9 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         position={selectedPosition}
         positions={positions}
         cash={cash}
+        cashCurrency={cashCurrency}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
         onAdjust={adjustPosition}
         getRecommendation={getRecommendation}
       />
@@ -198,6 +225,9 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         position={selectedPosition}
         positions={positions}
         cash={cash}
+        cashCurrency={cashCurrency}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
         onAdjust={adjustPosition}
         getRecommendation={getRecommendation}
       />
@@ -208,6 +238,9 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         cash={cash}
         onConfirm={fixCash}
         onConfirmWithLog={moveCash}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
+        cashCurrency={cashCurrency}
       />
 
       <MockPriceModal
@@ -220,6 +253,15 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         show={showConfigModal}
         onClose={() => setShowConfigModal(false)}
         readOnly={true}
+        cashCurrency={cashCurrency}
+      />
+
+      <RatesModal
+        show={showRatesModal}
+        onClose={() => setShowRatesModal(false)}
+        exchangeRates={exchangeRates}
+        onFetchRates={fetchExchangeRates}
+        onSetRate={setManualRate}
       />
 
       <Toast message={toast} />

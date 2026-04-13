@@ -2,6 +2,8 @@
  * Manfolio 数据管理
  */
 
+import { parseMarket, convertCurrency } from './helpers.js';
+
 const KEY = 'manfolio';
 
 const defaultTIER = [
@@ -15,7 +17,8 @@ function createDefaultPortfolio(name = 'Default') {
     name,
     config: defaultTIER,
     positions: [],
-    cash: 100000,
+    cash: 0,
+    cashCurrency: 'CNY',  // 现金的原始货币
     history: [],
     priceTime: null
   };
@@ -54,13 +57,24 @@ export function saveManfolio(data) {
  */
 export function listPortfolios() {
   const data = initManfolio();
-  return Object.entries(data.portfolios).map(([id, p]) => ({
-    id,
-    name: p.name,
-    value: p.positions.reduce((sum, pos) => sum + pos.value, 0),
-    cash: p.cash,
-    total: p.positions.reduce((sum, pos) => sum + pos.value, 0) + p.cash
-  }));
+  const rates = data.exchangeRates || { USD: 1, CNY: 7.1, HKD: 7.75 };
+  
+  return Object.entries(data.portfolios).map(([id, p]) => {
+    const cashCurrency = p.cashCurrency || 'CNY';
+    const stockValue = p.positions.reduce((sum, pos) => {
+      const { currency } = parseMarket(pos.symbol);
+      return sum + convertCurrency(pos.value, currency, cashCurrency, rates);
+    }, 0);
+    const total = stockValue + p.cash;
+    return {
+      id,
+      name: p.name,
+      value: stockValue,
+      cash: p.cash,
+      total,
+      cashCurrency
+    };
+  });
 }
 
 /**
@@ -104,7 +118,7 @@ export function setActivePortfolio(id) {
 /**
  * 创建新 portfolio
  */
-export function createPortfolio(name, config) {
+export function createPortfolio(name, config, settleCurrency = 'CNY') {
   const data = initManfolio();
   
   // 统计现有portfolio名称中"新Portfolio"开头的数量，自动生成序号
@@ -122,7 +136,8 @@ export function createPortfolio(name, config) {
     name: finalName,
     config: config || defaultTIER,
     positions: [],
-    cash: 100000,
+    cash: 0,
+    cashCurrency: settleCurrency,
     history: [],
     priceTime: null
   };
@@ -173,10 +188,14 @@ export function updatePositions(positions) {
 /**
  * 更新现金
  */
-export function updateCash(cash) {
+export function updateCash(cash, cashCurrency) {
   const p = getActivePortfolio();
   if (p) {
     p.cash = cash;
+    // 只有传入 cashCurrency 参数时才更新，不传则保持原值
+    if (cashCurrency !== undefined) {
+      p.cashCurrency = cashCurrency;
+    }
     saveCurrentPortfolio(p);
   }
 }
@@ -210,6 +229,23 @@ export function updateConfig(config) {
   const data = initManfolio();
   data.portfolios[data.activePortfolio].config = config;
   saveManfolio(data);
+}
+
+/**
+ * 更新汇率
+ */
+export function updateExchangeRates(exchangeRates) {
+  const data = initManfolio();
+  data.portfolios[data.activePortfolio].exchangeRates = exchangeRates;
+  saveManfolio(data);
+}
+
+/**
+ * 获取汇率
+ */
+export function getExchangeRates() {
+  const p = getActivePortfolio();
+  return p?.exchangeRates || null;
 }
 
 /**
