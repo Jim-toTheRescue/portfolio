@@ -9,8 +9,8 @@ export function autoRebalance(positions, total, cashCurrency, exchangeRates) {
     const { currency } = parseMarket(p.symbol);
     const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
     const percent = (settleValue / total) * 100;
-    const target = getConfig()[p.tier - 1].target;
-    return Math.abs(percent - target) > DRIFT_THRESHOLD;
+    const targetTier = getTargetTier(percent);
+    return p.tier !== targetTier;
   });
   
   if (!needsRebalance) {
@@ -52,8 +52,12 @@ export function autoRebalance(positions, total, cashCurrency, exchangeRates) {
       return 0;
     });
 
-    const mainSlots = { 1: [], 2: [], 3: [] };
-    const bufferSlots = { 1: [], 2: [], 3: [] };
+    const mainSlots = {};
+    const bufferSlots = {};
+    for (let i = 1; i <= getConfig().length; i++) {
+      mainSlots[i] = [];
+      bufferSlots[i] = [];
+    }
 
     for (const pos of working) {
       const target = pos.targetTier;
