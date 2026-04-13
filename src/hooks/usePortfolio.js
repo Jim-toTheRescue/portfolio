@@ -26,14 +26,27 @@ export function usePortfolio() {
       setCashCurrency(p.cashCurrency || 'CNY');
       setHistory(p.history || []);
       setPriceTime(p.priceTime || null);
-      if (p.exchangeRates) {
-        setExchangeRates(p.exchangeRates);
+      // 从全局获取汇率
+      const globalRates = getExchangeRates();
+      if (globalRates) {
+        setExchangeRates(globalRates);
       }
       // 默认显示货币为结算货币
       setDisplayCurrency(p.cashCurrency || 'USD');
       setIsInitialized(true);
     }
   }, []);
+
+  // 初始化后自动获取汇率（超过一天才更新）
+  useEffect(() => {
+    if (isInitialized) {
+      const lastTime = exchangeRates.lastUpdate ? new Date(exchangeRates.lastUpdate).getTime() : 0;
+      const now = Date.now();
+      if (!lastTime || now - lastTime > 86400000) {
+        fetchExchangeRates();
+      }
+    }
+  }, [isInitialized]);
 
   // 保存汇率变化
   useEffect(() => {
@@ -608,7 +621,8 @@ export function usePortfolio() {
         const rates = {
           USD: 1,
           CNY: data.rates.CNY || 7.10,
-          HKD: data.rates.HKD || 7.75
+          HKD: data.rates.HKD || 7.75,
+          lastUpdate: new Date().toLocaleString('zh-CN')
         };
         setExchangeRates(rates);
         showToast('汇率已更新');

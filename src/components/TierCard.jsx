@@ -148,6 +148,7 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
             confirmClear={confirmClear}
             displayCurrency={displayCurrency}
             exchangeRates={exchangeRates}
+            cashCurrency={cashCurrency}
             getDisplayValue={getDisplayValue}
           />
         ))}
@@ -176,6 +177,7 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
                 confirmClear={confirmClear}
                 displayCurrency={displayCurrency}
                 exchangeRates={exchangeRates}
+                cashCurrency={cashCurrency}
                 getDisplayValue={getDisplayValue}
               />
             ))}

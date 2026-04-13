@@ -261,7 +261,6 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onClose={() => setShowRatesModal(false)}
         exchangeRates={exchangeRates}
         onFetchRates={fetchExchangeRates}
-        onSetRate={setManualRate}
       />
 
       <Toast message={toast} />

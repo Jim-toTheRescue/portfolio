@@ -837,73 +837,44 @@ function MockPriceModal({ show, onClose, onConfirm }) {
   );
 }
 
-// 汇率设置弹窗
-function RatesModal({ show, onClose, exchangeRates, onFetchRates, onSetRate }) {
-  const [usdRate, setUsdRate] = useState('');
-  const [cnyRate, setCnyRate] = useState('');
-  const [hkdRate, setHkdRate] = useState('');
-
-  useEffect(() => {
-    if (show && exchangeRates) {
-      setUsdRate(exchangeRates.USD || '');
-      setCnyRate(exchangeRates.CNY || '');
-      setHkdRate(exchangeRates.HKD || '');
-    }
-  }, [show, exchangeRates]);
-
-  const handleFetch = () => {
-    onFetchRates();
-  };
-
-  const handleSave = () => {
-    if (usdRate) onSetRate('USD', parseFloat(usdRate));
-    if (cnyRate) onSetRate('CNY', parseFloat(cnyRate));
-    if (hkdRate) onSetRate('HKD', parseFloat(hkdRate));
-    onClose();
-  };
-
+// 汇率显示弹窗
+function RatesModal({ show, onClose, exchangeRates, onFetchRates }) {
   if (!show) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay show" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>汇率设置</h3>
+          <h3>汇率</h3>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
-          <div className="form-group">
-            <button className="btn btn-primary" onClick={handleFetch} style={{ marginBottom: '16px' }}>
-              自动获取汇率
+          <div style={{ marginBottom: '16px' }}>
+            <button className="btn btn-primary" onClick={onFetchRates}>
+              刷新汇率
             </button>
           </div>
           <div className="form-group">
-            <label>USD (1 USD = ? CNY)</label>
-            <input
-              type="number"
-              value={usdRate}
-              onChange={e => setUsdRate(e.target.value)}
-              placeholder={exchangeRates?.USD || '7.10'}
-            />
+            <label>USD/CNY</label>
+            <div style={{ fontSize: '1.2rem' }}>{exchangeRates?.CNY?.toFixed(4) || '-'}</div>
           </div>
           <div className="form-group">
-            <label>HKD (1 HKD = ? CNY)</label>
-            <input
-              type="number"
-              value={hkdRate}
-              onChange={e => setHkdRate(e.target.value)}
-              placeholder={exchangeRates?.HKD || '0.92'}
-            />
+            <label>USD/HKD</label>
+            <div style={{ fontSize: '1.2rem' }}>{exchangeRates?.HKD?.toFixed(4) || '-'}</div>
+          </div>
+          <div className="form-group">
+            <label>CNY/HKD</label>
+            <div style={{ fontSize: '1.2rem' }}>
+              {exchangeRates?.CNY && exchangeRates?.HKD 
+                ? (exchangeRates.HKD / exchangeRates.CNY).toFixed(4) 
+                : '-'}
+            </div>
           </div>
           {exchangeRates?.lastUpdate && (
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '8px' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '16px' }}>
               更新时间：{exchangeRates.lastUpdate}
             </div>
           )}
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-primary" onClick={handleSave}>保存</button>
-          <button className="btn btn-secondary" onClick={onClose}>取消</button>
         </div>
       </div>
     </div>

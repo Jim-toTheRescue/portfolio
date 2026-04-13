@@ -39,7 +39,8 @@ export function initManfolio() {
     activePortfolio: 'default',
     portfolios: {
       'default': createDefaultPortfolio('Default')
-    }
+    },
+    exchangeRates: null
   };
   saveManfolio(data);
   return data;
@@ -236,7 +237,7 @@ export function updateConfig(config) {
  */
 export function updateExchangeRates(exchangeRates) {
   const data = initManfolio();
-  data.portfolios[data.activePortfolio].exchangeRates = exchangeRates;
+  data.exchangeRates = exchangeRates;
   saveManfolio(data);
 }
 
@@ -244,8 +245,8 @@ export function updateExchangeRates(exchangeRates) {
  * 获取汇率
  */
 export function getExchangeRates() {
-  const p = getActivePortfolio();
-  return p?.exchangeRates || null;
+  const data = initManfolio();
+  return data.exchangeRates || null;
 }
 
 /**
