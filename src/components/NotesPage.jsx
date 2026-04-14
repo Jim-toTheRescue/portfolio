@@ -112,8 +112,9 @@ export default function NotesPage() {
     if (!inputContent.trim()) return;
     try {
       const p = getActivePortfolio();
-      // 发评论使用当前页面的 portfolioId
-      await addNote(symbol, name, inputContent.trim(), false, null, portfolioId, p?.name);
+      // 组合评论区发帖 symbol 为 null
+      const noteSymbol = portfolioId ? null : symbol;
+      await addNote(noteSymbol, name, inputContent.trim(), false, null, portfolioId, p?.name);
       setInputContent('');
       setShowAddInput(false);
       loadNotes();
@@ -128,8 +129,9 @@ export default function NotesPage() {
       const parentNote = notes.find(n => n.id === parentId);
       const parentPortfolioId = parentNote?.portfolioId;
       const p = getActivePortfolio();
-      // 回复跟随父评论的 portfolioId，确保在同一评论区
-      await addNote(symbol, name, inputContent.trim(), false, parentId, parentPortfolioId || portfolioId, p?.name);
+      // 组合评论区回复 symbol 为 null
+      const noteSymbol = portfolioId ? null : symbol;
+      await addNote(noteSymbol, name, inputContent.trim(), false, parentId, parentPortfolioId || portfolioId, p?.name);
       setInputContent('');
       setReplyingTo(null);
       loadNotes();
