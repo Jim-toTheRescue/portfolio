@@ -2,10 +2,11 @@ import { getConfig } from './constants.js';
 import { getTargetTier, parseMarket, convertCurrency } from './helpers.js';
 
 export function autoRebalance(positions, total, cashCurrency, exchangeRates) {
-  const DRIFT_THRESHOLD = 5;
+  const config = getConfig();
   
+  // 检查是否需要 rebalance
   const needsRebalance = positions.some(p => {
-    if (p.tier < 1 || p.tier > getConfig().length) return false;
+    if (p.tier < 1 || p.tier > config.length) return false;
     const { currency } = parseMarket(p.symbol);
     const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
     const percent = (settleValue / total) * 100;
@@ -13,148 +14,90 @@ export function autoRebalance(positions, total, cashCurrency, exchangeRates) {
     return p.tier !== targetTier;
   });
   
-  if (!needsRebalance) {
+  // 检查缓冲位 promote
+  const hasBufferPromotion = positions.some(p => {
+    if (!p.inBuffer) return false;
+    const tierLimit = config[p.tier - 1].limit;
+    const sameTierCount = positions.filter(sp => sp.tier === p.tier && !sp.inBuffer).length;
+    return sameTierCount < tierLimit;
+  });
+  
+  if (!needsRebalance && !hasBufferPromotion) {
     return positions.map(p => ({ ...p }));
   }
+
+  // 简化算法：直接根据占比分配梯队
+  const result = positions.map(p => {
+    const { currency } = parseMarket(p.symbol);
+    const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
+    const percent = (settleValue / total) * 100;
+    const targetTier = getTargetTier(percent);
+    return { ...p, tier: targetTier };
+  });
+
+  // 按结算市值排序，分配主位/缓冲位
+  for (const pos of result) {
+    const { currency } = parseMarket(pos.symbol);
+    pos._settleValue = convertCurrency(pos.value, currency, cashCurrency, exchangeRates);
+  }
+  result.sort((a, b) => b._settleValue - a._settleValue);
   
-  const originalPositions = positions.map(p => ({ ...p }));
-  let iteration = 0;
-  const maxIterations = 100;
-
-  while (iteration < maxIterations) {
-    iteration++;
-
-    const working = originalPositions.map(p => {
-      const { currency } = parseMarket(p.symbol);
-      const settleValue = convertCurrency(p.value, currency, cashCurrency, exchangeRates);
-      return {
-        symbol: p.symbol,
-        p: p,
-        percent: (settleValue / total) * 100,
-        targetTier: getTargetTier((settleValue / total) * 100),
-        originalInBuffer: p.inBuffer
-      };
-    });
-
-    working.sort((a, b) => {
-      if (a.targetTier !== b.targetTier) return a.targetTier - b.targetTier;
-      const aAlreadyInTarget = a.targetTier === a.p.tier;
-      const bAlreadyInTarget = b.targetTier === b.p.tier;
-      if (aAlreadyInTarget && !bAlreadyInTarget) return -1;
-      if (!aAlreadyInTarget && bAlreadyInTarget) return 1;
-      if (!aAlreadyInTarget && !bAlreadyInTarget) return b.percent - a.percent;
-      if (aAlreadyInTarget && bAlreadyInTarget) {
-        if (a.originalInBuffer !== b.originalInBuffer) {
-          return a.originalInBuffer ? 1 : -1;
-        }
-        return b.percent - a.percent;
-      }
-      return 0;
-    });
-
-    const mainSlots = {};
-    const bufferSlots = {};
-    for (let i = 1; i <= getConfig().length; i++) {
-      mainSlots[i] = [];
-      bufferSlots[i] = [];
+  const mainSlots = {};
+  const bufferSlots = {};
+  for (let i = 1; i <= config.length; i++) {
+    mainSlots[i] = [];
+    bufferSlots[i] = [];
+  }
+  
+  // 第一步：分配主位
+  const assignedToMain = new Set();
+  for (const pos of result) {
+    const limit = config[pos.tier - 1].limit;
+    
+    if (mainSlots[pos.tier].length < limit) {
+      mainSlots[pos.tier].push(pos);
+      pos.inBuffer = false;
+      assignedToMain.add(pos.symbol);
     }
-
-    for (const pos of working) {
-      const target = pos.targetTier;
-      const current = pos.p.tier;
-      const limit = getConfig()[target - 1].limit;
-      const bufferLimit = getConfig()[target - 1].buffer;
-
-      if (target === current) {
-        if (mainSlots[target].length < limit) {
-          pos.p.inBuffer = false;
-          mainSlots[target].push(pos);
-        } else if (pos.originalInBuffer && bufferLimit > 0) {
-          pos.p.inBuffer = true;
-          bufferSlots[target].push(pos);
-        } else if (!pos.originalInBuffer && bufferLimit > 0 && bufferSlots[target].length < bufferLimit) {
-          pos.p.inBuffer = true;
-          bufferSlots[target].push(pos);
-        } else {
-          pos.p.inBuffer = false;
-          mainSlots[target].push(pos);
-        }
-        } else {
-          // 检查目标梯队是否满了（主位和缓冲位都满了）
-          const targetFull = mainSlots[target].length >= limit && 
-                            (bufferLimit === 0 || bufferSlots[target].length >= bufferLimit);
-          
-          if (!targetFull) {
-            // 目标梯队有空位，正常进入
-            if (mainSlots[target].length < limit) {
-              pos.p.tier = target;
-              pos.p.inBuffer = false;
-              mainSlots[target].push(pos);
-            } else if (bufferLimit > 0 && bufferSlots[target].length < bufferLimit) {
-              pos.p.tier = target;
-              pos.p.inBuffer = true;
-              bufferSlots[target].push(pos);
-            }
-          } else {
-            // 目标梯队满了，尝试放到次优梯队（target+1）
-            let placed = false;
-            const tryTier = target + 1;
-            
-            if (tryTier <= getConfig().length) {
-              const tryLimit = getConfig()[tryTier - 1].limit;
-              const tryBuffer = getConfig()[tryTier - 1].buffer;
-              const tryFull = mainSlots[tryTier].length >= tryLimit && 
-                             (tryBuffer === 0 || bufferSlots[tryTier].length >= tryBuffer);
-              
-              if (!tryFull) {
-                if (mainSlots[tryTier].length < tryLimit) {
-                  pos.p.tier = tryTier;
-                  pos.p.inBuffer = false;
-                  mainSlots[tryTier].push(pos);
-                } else if (tryBuffer > 0 && bufferSlots[tryTier].length < tryBuffer) {
-                  pos.p.tier = tryTier;
-                  pos.p.inBuffer = true;
-                  bufferSlots[tryTier].push(pos);
-                }
-                placed = true;
-              }
-            }
-            
-            if (!placed) {
-            pos.p.tier = current;
-            pos.p.inBuffer = false;
-            mainSlots[current].push(pos);
-          }
-        }
-      }
+    // else: 主位满了，保持原 inBuffer 不变
+  }
+  
+  // 第二步：计算每个 tier 的缓冲位可用数量 = 所有更高权重梯队的主位空位之和
+  const bufferAvailable = {};
+  for (let tier = 1; tier <= config.length; tier++) {
+    let higherEmptySlots = 0;
+    for (let higher = 1; higher < tier; higher++) {
+      const limit = config[higher - 1].limit;
+      higherEmptySlots += limit - mainSlots[higher].length;
     }
-
-    for (let tier = 1; tier <= getConfig().length; tier++) {
-      while (mainSlots[tier].length < getConfig()[tier - 1].limit && bufferSlots[tier].length > 0) {
-        const pos = bufferSlots[tier].shift();
-        if (pos.originalInBuffer) {
-          continue;
-        }
-        pos.p.inBuffer = false;
-        pos.p.tier = tier;
-        mainSlots[tier].push(pos);
-      }
-    }
-
-    let allStable = true;
-    for (const pos of working) {
-      if (pos.p.tier !== pos.targetTier) {
-        allStable = false;
-        break;
-      }
-    }
-
-    if (allStable) {
-      break;
+    bufferAvailable[tier] = Math.max(0, higherEmptySlots);
+  }
+  
+  // 第三步：分配缓冲位（跳过已在主位的股票）
+  for (const pos of result) {
+    if (assignedToMain.has(pos.symbol)) continue;
+    
+    const available = bufferAvailable[pos.tier];
+    
+    if (available > 0 && bufferSlots[pos.tier].length < available) {
+      bufferSlots[pos.tier].push(pos);
+      pos.inBuffer = true;
     }
   }
-
-  return originalPositions.map(p => ({ ...p }));
+  
+  // 第四步：缓冲位 promote 到主位
+  for (let tier = 1; tier <= config.length; tier++) {
+    while (mainSlots[tier].length < config[tier - 1].limit && bufferSlots[tier].length > 0) {
+      const pos = bufferSlots[tier].shift();
+      pos.inBuffer = false;
+      mainSlots[tier].push(pos);
+    }
+  }
+  
+  return result.map(p => {
+    const { _settleValue, ...rest } = p;
+    return rest;
+  });
 }
 
 export function calculateShares(params) {

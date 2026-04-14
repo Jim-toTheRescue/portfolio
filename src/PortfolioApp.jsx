@@ -7,9 +7,14 @@ import { HistoryPanel, Toast } from './components/History';
 import ConfigModal from './components/ConfigModal';
 import { getConfig } from './utils/constants';
 import { useRouter } from './utils/router';
+import { getActivePortfolio } from './utils/manfolio';
 import './styles/App.css';
 function PortfolioApp() {
   const { navigate } = useRouter();
+  const [configKey, setConfigKey] = useState(0);
+  const [, forceUpdate] = useState(0);
+  const portfolio = getActivePortfolio();
+  const portfolioName = portfolio?.name || '';
   const {
     positions,
     cash,
@@ -89,6 +94,15 @@ function PortfolioApp() {
     }
   };
 
+  const handleConfigChange = () => {
+    setConfigKey(prev => prev + 1);
+    forceUpdate(n => n + 1);
+  };
+
+  const handleBack = () => {
+    navigate('/manfolio');
+  };
+
   return (
     <div className="app">
       <Header
@@ -104,6 +118,8 @@ function PortfolioApp() {
         onMockPrice={() => setShowMockPriceModal(true)}
         onConfig={() => setShowConfigModal(true)}
         onRates={() => setShowRatesModal(true)}
+        portfolioName={portfolioName}
+        onNameChange={() => forceUpdate(n => n + 1)}
       />
 
       <Summary
@@ -214,8 +230,7 @@ function PortfolioApp() {
       <ConfigModal
         show={showConfigModal}
         onClose={() => setShowConfigModal(false)}
-        readOnly={true}
-        cashCurrency={cashCurrency}
+        onConfigChange={handleConfigChange}
       />
 
       <RatesModal

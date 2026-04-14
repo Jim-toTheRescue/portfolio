@@ -29,11 +29,9 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
   let recommendation = null;
   if (Math.abs(drift) > 5) {
     if (drift > 0 && position.tier > 1) {
-      const targetTier = Math.max(1, position.tier - 1);
-      recommendation = `建议升${tierName(targetTier)}`;
+      recommendation = '有晋级风险';
     } else if (drift < 0 && position.tier < getConfig().length) {
-      const targetTier = Math.min(getConfig().length, position.tier + 1);
-      recommendation = `建议降${tierName(targetTier)}`;
+      recommendation = '有降级风险';
     }
   }
 
@@ -45,13 +43,30 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
   const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
   const currencySymbol = currencySymbols[currency] || '$';
 
+  // 最新交易时间
+  let lastTradeColor = null;
+  if (position.lastTradeTime) {
+    try {
+      const tradeDate = new Date(position.lastTradeTime);
+      const now = new Date();
+      const daysDiff = (now - tradeDate) / (1000 * 60 * 60 * 24);
+      lastTradeColor = daysDiff <= 7 ? 'var(--red)' : 'var(--text-secondary)';
+    } catch (e) {}
+  }
+
   return (
     <div className={`position-item ${isBuffer ? 'position-buffer' : ''}`}>
       <div className="position-info">
         <div className="position-code">
           {position?.symbol || ''} 
           <span className="market-tag">{marketLabels[market] || ''}</span>
-          <span className="position-name-text">{position?.name || ''}</span>
+          <span 
+            className="position-name-text" 
+            title={position?.name || ''}
+            style={{ maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {position?.name || ''}
+          </span>
         </div>
         <div className="position-name">
           {position?.shares || 0}股 · {currencySymbol}{position?.price || 0}
@@ -60,6 +75,11 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
           {currencySymbol}{(position?.value || 0).toLocaleString()}
           {showConvertedValue && <span className="converted-value"> ≈ {displaySymbol}{displayValue.toLocaleString()}</span>}
         </div>
+        {lastTradeColor && (
+          <div style={{ fontSize: '10px', color: lastTradeColor }}>
+            ⇄ {position.lastTradeTime}
+          </div>
+        )}
       </div>
 <div className="position-value">
         <div className="position-percent">{percent}%</div>

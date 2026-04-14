@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getConfig, getTierConfig } from '../utils/constants';
+import { getConfig, getTierConfig, getTopTierAllowBuy } from '../utils/constants';
 import { getUpperLimit, getTargetTier, totalWithCash, detectMarket, toApiSymbol, parseMarket, convertCurrency } from '../utils/helpers';
 import { calculateShares } from '../utils/portfolio';
 
@@ -68,6 +68,12 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
     }
   };
 
+  useEffect(() => {
+    if (fetchedPrice > 0) {
+      handleRecommend('target');
+    }
+  }, [fetchedPrice]);
+
   // 计算转换后的金额（转换为显示货币）
   const getDisplayCost = () => {
     if (!fetchedPrice || !shares) return null;
@@ -103,9 +109,18 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
     setCost(rawCostVal);
     setCostPercent(percent);
     
-    const existing = positions.find(p => p.symbol === symbol);
+    const fullSymbol = symbol + '.' + market;
+    const existing = positions.find(p => p.symbol === fullSymbol);
     if (existing) {
       setWarning('该股票已存在持仓，请使用加仓功能');
+      return;
+    }
+    
+    // 股票数检查（仅新建仓）
+    const config = getConfig();
+    const totalMainSlots = config.reduce((sum, t) => sum + t.limit, 0);
+    if (positions.length >= totalMainSlots) {
+      setWarning(`股票数已满${positions.length}/${totalMainSlots}`);
       return;
     }
     
@@ -115,40 +130,10 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
       const newTotal = total + costVal;
       const newPercent = (costVal / newTotal) * 100;
       
-      // 新建仓检查：单笔不超过最低梯队上限
-      const lastTier = getConfig().length;
-      const lastTierConfig = getConfig()[lastTier - 1];
-      const maxNewPercent = getUpperLimit(lastTier);
+      const fullSymbol = symbol + '.' + market;
+      const existing = positions.find(p => p.symbol === fullSymbol);
       
-      if (!existing && newPercent > maxNewPercent) {
-        setWarning(`单笔超过${maxNewPercent}%将跳级，请减少股数`);
-      } else if (!existing) {
-        // 最低梯队主位是否已满
-        const lastTier = getConfig().length;
-        const lastTierConfig = getConfig()[lastTier - 1];
-        const lastTierMainCount = positions.filter(p => p.tier === lastTier && !p.inBuffer).length;
-        const lastTierBufferCount = positions.filter(p => p.tier === lastTier && p.inBuffer).length;
-        
-        if (lastTierMainCount >= lastTierConfig.limit) {
-          // 主位满了，检查缓冲位
-          // 缓冲位可用 = 所有更高梯队的主位空位之和
-          let freeSlots = 0;
-          for (let t = 1; t < lastTier; t++) {
-            const tierConfig = getConfig()[t - 1];
-            const tierMainCount = positions.filter(p => p.tier === t && !p.inBuffer).length;
-            freeSlots += Math.max(0, tierConfig.limit - tierMainCount);
-          }
-          const canUseBuffer = lastTierBufferCount < lastTierConfig.buffer && freeSlots > 0;
-          if (canUseBuffer) {
-            setWarning('');
-          } else {
-            setWarning(`第${lastTier}梯队已满`);
-          }
-        } else {
-          setWarning('');
-        }
-      } else if (existing) {
-        // 加仓超过当前梯队上限跳级
+      if (existing) {
         const newValue = existing.value + costVal;
         const newValuePercent = (newValue / newTotal) * 100;
         const existingUpperLimit = getUpperLimit(existing.tier);
@@ -156,6 +141,42 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
           setWarning(`持仓超过${existingUpperLimit}%将跳级，请减少股数`);
         } else {
           setWarning('');
+        }
+      } else {
+        // 新建仓检查
+        const calculatedTier = getTargetTier(newPercent);
+        const maxTier = getTopTierAllowBuy();
+        const targetTier = Math.min(calculatedTier, maxTier);
+        
+        const targetTierConfig = getConfig()[targetTier - 1];
+        const maxNewPercent = getUpperLimit(targetTier);
+        
+        if (newPercent > maxNewPercent) {
+          setWarning(`单笔超过${maxNewPercent}%将跳级，请减少股数`);
+        } else {
+          const targetTierMainCount = positions.filter(p => p.tier === targetTier && !p.inBuffer).length;
+          
+          let freeSlots = 0;
+          for (let t = 1; t < targetTier; t++) {
+            const tierConfig = getConfig()[t - 1];
+            const tierMainCount = positions.filter(p => p.tier === t && !p.inBuffer).length;
+            freeSlots += Math.max(0, tierConfig.limit - tierMainCount);
+          }
+          
+          if (targetTierMainCount >= targetTierConfig.limit) {
+            if (freeSlots <= 0) {
+              setWarning(`第${targetTier}梯队已满`);
+            } else {
+              const targetTierBufferCount = positions.filter(p => p.tier === targetTier && p.inBuffer).length;
+              if (targetTierBufferCount >= freeSlots) {
+                setWarning(`第${targetTier}梯队缓冲位已满`);
+              } else {
+                setWarning('');
+              }
+            }
+          } else {
+            setWarning('');
+          }
         }
       }
     } else {
@@ -177,91 +198,34 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
       return sum + convertCurrency(p.value, currency, cashCurrency, exchangeRates);
     }, 0);
     const total = totalSettleCash + totalPositionsValue;
-    const lastTierConfig = getConfig()[getConfig().length - 1];
+    const config = getConfig();
+    const lastTierConfig = config[config.length - 1];
+    const topTier = getTopTierAllowBuy();
+    const topTierConfig = config[topTier - 1] || lastTierConfig;
     
-    // 使用与 calculateShares 相同的逻辑
-    let button;
-    let isAdd = true;
-    
-    const lastTier = getConfig().length;
-    
-    if (type === 'reset') button = '=';      // 最低梯队目标
-    else if (type === 'min') button = `min${lastTier}`; // 最低梯队下限
-    else if (type === 'max') button = `max${lastTier}`; // 最低梯队上限
-    
-    const posValue = 0;
     const price = fetchedPrice;
+    const priceCurrency = market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY';
     let shares = 0;
     
-    // 新仓位 maxX：加到刚好低于最低梯队上限
-    if (button === `max${lastTier}`) {
-      const limit = getUpperLimit(lastTier);
-      
-      if (total <= 0 || price <= 0) {
-        shares = 0;
-      } else {
-        // 找最接近最低梯队上限但小于该上限的股数
-        let bestShares = 0;
-        let bestDiff = Infinity;
-        for (let s = 1; s <= 10000; s++) {
-          const rawValue = s * price;
-          const newValue = convertCurrency(rawValue, market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY', cashCurrency, exchangeRates);
-          const newPercent = (newValue / total) * 100;
-          if (newPercent >= limit) break;
-          const diff = limit - newPercent;
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            bestShares = s;
-          }
-        }
-        shares = bestShares > 0 ? bestShares : 1;
-      }
-    } else if (button === `min${lastTier}`) {
-      // 新仓位：推荐刚好最低梯队最小值的股数
-      const limit = lastTierConfig.min;
-      
-      if (total <= 0 || price <= 0) {
-        shares = 0;
-      } else {
-        // 找 >= 5% 中最接近5%的股数
-        let bestShares = 0;
-        let bestDiff = Infinity;
-        for (let s = 1; s <= 10000; s++) {
-          const rawValue = s * price;
-          const newValue = convertCurrency(rawValue, market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY', cashCurrency, exchangeRates);
-          const newPercent = (newValue / total) * 100;
-          
-          if (newPercent < limit) continue;
-          
-          const diff = newPercent - limit;
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            bestShares = s;
-          }
-        }
-        shares = bestShares > 0 ? bestShares : 1;
-      }
-    } else if (button === '=') {
-      // 新仓位：推荐刚好10%的股数
+    if (type === 'target') {
+      // ↑：最后一个梯队 target
       const targetPercent = lastTierConfig.target;
-      
       if (total <= 0 || price <= 0) {
         shares = 0;
       } else {
-        // 找最接近10%的股数
-        let bestShares = 0;
-        let bestDiff = Infinity;
-        for (let s = 1; s <= 10000; s++) {
-          const rawValue = s * price;
-          const newValue = convertCurrency(rawValue, market === 'US' ? 'USD' : market === 'HK' ? 'HKD' : 'CNY', cashCurrency, exchangeRates);
-          const newPercent = (newValue / total) * 100;
-          const diff = Math.abs(newPercent - targetPercent);
-          if (diff < bestDiff) {
-            bestDiff = diff;
-            bestShares = s;
-          }
-        }
-        shares = bestShares > 0 ? bestShares : 1;
+        const priceInSettle = convertCurrency(price, priceCurrency, cashCurrency, exchangeRates);
+        const targetValue = total * targetPercent / 100;
+        shares = Math.floor(targetValue / priceInSettle);
+      }
+    } else if (type === 'maxBuy') {
+      // max：topTierAllowBuy 梯队的 target
+      const maxPercent = topTierConfig.target;
+      if (total <= 0 || price <= 0) {
+        shares = 0;
+      } else {
+        const priceInSettle = convertCurrency(price, priceCurrency, cashCurrency, exchangeRates);
+        const targetValue = total * maxPercent / 100;
+        shares = Math.floor(targetValue / priceInSettle);
       }
     }
     
@@ -272,6 +236,8 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
   const handleConfirm = () => {
     const sharesNum = parseInt(shares) || 0;
     if (!symbol || sharesNum <= 0 || fetchedPrice <= 0) return;
+    if (warning) return;
+    
     const fullSymbol = symbol + '.' + market;
     onAdd(fullSymbol, name, sharesNum, fetchedPrice);
     onClose();
@@ -299,6 +265,12 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
             </div>
           </div>
           <div className="form-group">
+            <label className="form-label"></label>
+            <div style={{ color: '#666', fontSize: '12px' }}>
+              最高建仓比例：{getConfig()[getTopTierAllowBuy() - 1]?.max || 15}%
+            </div>
+          </div>
+          <div className="form-group">
             <label className="form-label">股票代码 *</label>
             <input ref={symbolInputRef} className="form-input" value={symbol} onChange={handleSymbolChange} onBlur={handleSymbolBlur} placeholder="AAPL" />
           </div>
@@ -314,9 +286,8 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
             <label className="form-label">股数 *</label>
             <div className="input-with-buttons">
               <input type="number" className="form-input" value={shares} onChange={handleSharesChange} placeholder="100" />
-              <button onClick={() => handleRecommend('reset')}>↻</button>
-              <button onClick={() => handleRecommend('min')}>min</button>
-              <button onClick={() => handleRecommend('max')}>max</button>
+              <button onClick={() => handleRecommend('target')}>↑</button>
+              <button onClick={() => handleRecommend('maxBuy')}>max</button>
             </div>
           </div>
           <div className="form-group">
@@ -359,6 +330,14 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
       setWarning('');
     } else {
       setShares('');
+      if (getRecommendation) {
+        const tier = position.tier || 3;
+        const button = tier >= 2 ? 'UP' : '=';
+        const rec = getRecommendation(position.symbol, tier, button, true);
+        if (rec > 0) {
+          setShares(rec.toString());
+        }
+      }
     }
   }, [show, position]);
 
@@ -585,7 +564,13 @@ function ReducePositionModal({ show, onClose, position, positions, cash, cashCur
       setWarning('');
     } else {
       setShares('');
-      setWarning('');
+      if (getRecommendation) {
+        const tier = position.tier || 3;
+        const rec = getRecommendation(position.symbol, tier, 'DOWN', false);
+        if (rec > 0) {
+          setShares(rec.toString());
+        }
+      }
     }
   }, [show, position]);
 

@@ -41,8 +41,8 @@ function ManfolioHome() {
     setPortfolios(listPortfolios());
   }, []);
 
-  const handleCreate = (name, config, settleCurrency) => {
-    const id = createPortfolio(name, config, settleCurrency);
+  const handleCreate = (name, config, settleCurrency, topTierAllowBuy) => {
+    const id = createPortfolio(name, config, settleCurrency, topTierAllowBuy);
     setPortfolios(listPortfolios());
     navigate('/folio/' + id);
   };

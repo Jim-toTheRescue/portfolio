@@ -47,7 +47,21 @@ function HistoryPanel({ show, history, onToggle, onClear }) {
     if (h.action === '入金' || h.action === '出金') {
       return `$${h.adjShares.toLocaleString()}`;
     }
-    return `${h.adjShares}股 @ $${h.price}`;
+    let percent = '';
+    if (h.action === '清仓') {
+      percent = '100%';
+    } else if (h.totalShares && h.adjShares) {
+      let beforeShares;
+      if (h.action === '加仓') {
+        beforeShares = h.totalShares - h.adjShares;
+      } else if (h.action === '减仓') {
+        beforeShares = h.totalShares + h.adjShares;
+      }
+      if (beforeShares > 0) {
+        percent = ` (${Math.round((h.adjShares / beforeShares) * 100)}%)`;
+      }
+    }
+    return `${h.adjShares}股 @ $${h.price}${percent}`;
   };
 
   return (

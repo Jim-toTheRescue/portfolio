@@ -16,9 +16,10 @@ function createDefaultPortfolio(name = 'Default') {
   return {
     name,
     config: defaultTIER,
+    topTierAllowBuy: null,
     positions: [],
     cash: 0,
-    cashCurrency: 'CNY',  // 现金的原始货币
+    cashCurrency: 'CNY',
     history: [],
     priceTime: null
   };
@@ -119,7 +120,7 @@ export function setActivePortfolio(id) {
 /**
  * 创建新 portfolio
  */
-export function createPortfolio(name, config, settleCurrency = 'CNY') {
+export function createPortfolio(name, config, settleCurrency = 'CNY', topTierAllowBuy = null) {
   const data = initManfolio();
   
   // 统计现有portfolio名称中"新Portfolio"开头的数量，自动生成序号
@@ -136,6 +137,7 @@ export function createPortfolio(name, config, settleCurrency = 'CNY') {
   data.portfolios[id] = {
     name: finalName,
     config: config || defaultTIER,
+    topTierAllowBuy: topTierAllowBuy || config?.length || 3,
     positions: [],
     cash: 0,
     cashCurrency: settleCurrency,
@@ -229,6 +231,12 @@ export function updatePriceTime(priceTime) {
 export function updateConfig(config) {
   const data = initManfolio();
   data.portfolios[data.activePortfolio].config = config;
+  saveManfolio(data);
+}
+
+export function updatePortfolioName(name) {
+  const data = initManfolio();
+  data.portfolios[data.activePortfolio].name = name;
   saveManfolio(data);
 }
 

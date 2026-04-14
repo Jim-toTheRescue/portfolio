@@ -17,12 +17,13 @@ export function getTIER() {
   try {
     const p = getActivePortfolio();
     if (p && p.config) {
-      return p.config;
+      // 新结构：config.tiers 或旧结构：config数组
+      return p.config.tiers || p.config;
     }
     const saved = localStorage.getItem(CONFIG_KEY);
     if (saved) {
       const config = JSON.parse(saved);
-      return config.tier || defaultTIER;
+      return config.tiers || config.tier || defaultTIER;
     }
   } catch (e) {}
   return defaultTIER;
@@ -30,6 +31,18 @@ export function getTIER() {
 
 export function getConfig() {
   return getTIER();
+}
+
+export function getTopTierAllowBuy() {
+  try {
+    const p = getActivePortfolio();
+    if (p && p.topTierAllowBuy) {
+      return p.topTierAllowBuy;
+    }
+    const config = getTIER();
+    return config.length;
+  } catch (e) {}
+  return 3;
 }
 
 export function getTierConfig(tier) {

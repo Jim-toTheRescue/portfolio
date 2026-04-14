@@ -37,6 +37,9 @@ function App() {
 }
 
 function PortfolioAppWrapper({ folioId, navigate }) {
+  const [nameKey, setNameKey] = useState(0);
+  const portfolio = getActivePortfolio();
+  const portfolioName = portfolio?.name || '';
   const {
     positions,
     cash,
@@ -129,6 +132,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
   return (
     <div className="app">
       <Header
+        key={nameKey}
         onBack={handleBack}
         onRefresh={refreshPrices}
         onClearHistory={() => {
@@ -141,6 +145,8 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onMockPrice={() => setShowMockPriceModal(true)}
         onConfig={() => setShowConfigModal(true)}
         onRates={() => setShowRatesModal(true)}
+        portfolioName={portfolioName}
+        onNameChange={() => setNameKey(k => k + 1)}
       />
 
       <Summary
@@ -152,6 +158,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         displayCurrency={displayCurrency}
         cashCurrency={cashCurrency}
         onCurrencyChange={changeDisplayCurrency}
+        history={history}
       />
 
       <div className="add-section">
@@ -177,6 +184,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             cashCurrency={cashCurrency}
             getDisplayValue={getDisplayValue}
             getDisplayTotalWithCash={getDisplayTotalWithCash}
+            history={history}
           />
         ))}
       </div>

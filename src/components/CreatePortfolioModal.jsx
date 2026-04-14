@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { getConfig } from '../utils/constants';
 
 function CreatePortfolioModal({ show, onClose, onCreate }) {
   const [name, setName] = useState('');
   const [config, setConfig] = useState([]);
   const [settleCurrency, setSettleCurrency] = useState('CNY');
+  const [topTierAllowBuy, setTopTierAllowBuy] = useState(3);
 
   const getBuffer = (config, index) => {
     if (index === 0) return 0;
@@ -25,6 +27,7 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
         t.buffer = getBuffer(initialConfig, i);
       });
       setConfig(initialConfig);
+      setTopTierAllowBuy(initialConfig.length);
     }
   }, [show]);
 
@@ -54,6 +57,7 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
     }];
     newConfig.forEach((t, i) => t.buffer = getBuffer(newConfig, i));
     setConfig(newConfig);
+    setTopTierAllowBuy(newConfig.length);
   };
 
   const handleRemove = (index) => {
@@ -61,10 +65,11 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
     const newConfig = config.filter((_, i) => i !== index);
     newConfig.forEach((t, i) => t.buffer = getBuffer(newConfig, i));
     setConfig(newConfig);
+    setTopTierAllowBuy(newConfig.length);
   };
 
   const handleCreate = () => {
-    onCreate(name.trim(), config, settleCurrency);
+    onCreate(name.trim(), config, settleCurrency, topTierAllowBuy);
     onClose();
   };
 
@@ -129,6 +134,19 @@ function CreatePortfolioModal({ show, onClose, onCreate }) {
               <option value="CNY">¥ 人民币 (CNY)</option>
               <option value="USD">$ 美元 (USD)</option>
               <option value="HKD">hk$ 港币 (HKD)</option>
+            </select>
+          </div>
+          
+          <div className="form-group" style={{ marginBottom: '20px' }}>
+            <label className="form-label" style={{ color: '#fff', display: 'block', marginBottom: '8px' }}>最高允许建仓梯队</label>
+            <select 
+              style={{ ...inputStyle, width: '200px' }}
+              value={topTierAllowBuy}
+              onChange={e => setTopTierAllowBuy(parseInt(e.target.value))}
+            >
+              {config.map((tier, i) => (
+                <option key={i} value={i + 1}>{tier.name} (最高{tier.max}%)</option>
+              ))}
             </select>
           </div>
           

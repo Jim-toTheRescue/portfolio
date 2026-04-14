@@ -163,6 +163,7 @@ body {
 .summary-item {
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .summary-label {

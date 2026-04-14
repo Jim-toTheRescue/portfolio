@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates } from '../utils/manfolio';
-import { getConfig } from '../utils/constants';
+import { getConfig, getTopTierAllowBuy } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
 
@@ -40,9 +40,9 @@ export function usePortfolio() {
   // 初始化后自动获取汇率（超过一天才更新）
   useEffect(() => {
     if (isInitialized) {
-      const lastTime = exchangeRates.lastUpdate ? new Date(exchangeRates.lastUpdate).getTime() : 0;
+      const lastTradeTime = exchangeRates.lastUpdate ? new Date(exchangeRates.lastUpdate).getTime() : 0;
       const now = Date.now();
-      if (!lastTime || now - lastTime > 86400000) {
+      if (!lastTradeTime || now - lastTradeTime > 86400000) {
         fetchExchangeRates();
       }
     }
@@ -108,7 +108,7 @@ export function usePortfolio() {
 
   // 统一触发 autoRebalance
   useEffect(() => {
-    if (positions.length > 0) {
+    if (positions.length > 0 && exchangeRates) {
       // 使用结算货币计算总价值
       const totalSettleCash = cash;
       const totalPositionsValue = positions.reduce((sum, p) => {
@@ -118,7 +118,13 @@ export function usePortfolio() {
       const total = totalSettleCash + totalPositionsValue;
       
       const rebalanced = autoRebalance(positions, total, cashCurrency, exchangeRates);
-      if (JSON.stringify(rebalanced) !== JSON.stringify(positions)) {
+      
+      const changed = rebalanced.filter(newPos => {
+        const oldPos = positions.find(p => p.symbol === newPos.symbol);
+        return oldPos && (oldPos.tier !== newPos.tier || oldPos.inBuffer !== newPos.inBuffer);
+      });
+      
+      if (changed.length > 0) {
         // 记录梯队变动
         rebalanced.forEach((newPos) => {
           const oldPos = positions.find(p => p.symbol === newPos.symbol);
@@ -159,32 +165,40 @@ export function usePortfolio() {
     let shouldUseBuffer = false;
     if (!existing && total > 0) {
       const newPercent = (cost / total) * 100;
-      const lastTier = getConfig().length;
-      const maxNewPercent = getUpperLimit(lastTier);
+      
+      // 根据占比计算目标梯队
+      const calculatedTier = getTargetTier(newPercent);
+      const maxTier = getTopTierAllowBuy();
+      const config = getConfig();
+      const totalMainSlots = config.reduce((sum, t) => sum + t.limit, 0);
+      const totalPositions = positions.length;
+      
+      // 优先检查：股票数是否已满
+      if (totalPositions >= totalMainSlots) {
+        showToast(`股票数已满${totalPositions}/${totalMainSlots}`);
+        return false;
+      }
+      
+      // 检查是否超过可买梯队上限
+      const targetTier = calculatedTier;
+      if (targetTier > maxTier) {
+        showToast(`超过可买梯队上限，当前只能买第${maxTier}梯队`);
+        return false;
+      }
+      
+      // 检查梯队是否已满
+      const targetTierConfig = config[targetTier - 1];
+      const targetTierAllCount = positions.filter(p => p.tier === targetTier).length;
+      if (targetTierAllCount >= targetTierConfig.limit) {
+        showToast(`第${targetTier}梯队主位已满`);
+        return false;
+      }
+      
+      const maxNewPercent = getUpperLimit(targetTier);
+      
       if (newPercent > maxNewPercent) {
         showToast(`单笔超过${maxNewPercent}%将跳级，请减少股数`);
         return false;
-      }
-      const lastTierMainCount = positions.filter(p => p.tier === lastTier && !p.inBuffer).length;
-      const lastTierConfig = getConfig()[lastTier - 1];
-      if (lastTierMainCount >= lastTierConfig.limit) {
-        const lastTierBufferCount = positions.filter(p => p.tier === lastTier && p.inBuffer).length;
-        if (lastTierBufferCount < lastTierConfig.buffer) {
-          let freeSlots = 0;
-          for (let t = 1; t < lastTier; t++) {
-            const tConfig = getConfig()[t - 1];
-            const tMainCount = positions.filter(p => p.tier === t && !p.inBuffer).length;
-            freeSlots += Math.max(0, tConfig.limit - tMainCount);
-          }
-          if (freeSlots <= 0) {
-            showToast(`第${lastTier}梯队已满`);
-            return false;
-          }
-          shouldUseBuffer = true;
-        } else {
-          showToast(`第${lastTier}梯队已满`);
-          return false;
-        }
       }
     }
 
@@ -215,12 +229,19 @@ export function usePortfolio() {
               price,
               value: roundCurrency(ns * price),
               tier: p.tier,
-              inBuffer: p.inBuffer
+              inBuffer: p.inBuffer,
+              lastTradeTime: new Date().toLocaleString()
             }
           : p
       );
       newCash = roundCurrency(cash - cost);
     } else {
+      // 计算目标梯队
+      const newPercent = (cost / total) * 100;
+      const calculatedTier = getTargetTier(newPercent);
+      const maxTier = getTopTierAllowBuy();
+      const targetTier = Math.min(calculatedTier, maxTier);
+      
       newPositions = [
         ...positions,
         {
@@ -230,9 +251,10 @@ export function usePortfolio() {
           avgCost: price,
           price,
           value: roundCurrency(shares * price),
-          tier: getConfig().length,
+          tier: targetTier,
           inBuffer: shouldUseBuffer,
-          priceChange: 0
+          priceChange: 0,
+          lastTradeTime: new Date().toLocaleString()
         }
       ];
       newCash = roundCurrency(cash - cost);
@@ -332,7 +354,8 @@ export function usePortfolio() {
               avgCost: roundCurrency(nc / ns),
               value: finalVal,
               tier: p.tier,
-              inBuffer: p.inBuffer
+              inBuffer: p.inBuffer,
+              lastTradeTime: new Date().toLocaleString()
             }
           : p
       );
@@ -358,26 +381,27 @@ export function usePortfolio() {
       if (ns <= 0) {
         newPositions = positions.filter((p) => p.symbol !== symbol);
         newCash = roundCurrency(cash + pos.value);
-        log(
-          makeLog(
-            'sell',
-            symbol,
-            pos.name,
-            '清仓',
-            adjShares,
-            0,
-            pos.price,
-            pos.tier,
-            0
-          )
-        );
+      log(
+        makeLog(
+          'sell',
+          symbol,
+          pos.name,
+          '清仓',
+          adjShares,
+          pos.shares,
+          pos.price,
+          pos.tier,
+          0
+        )
+      );
       } else {
         newPositions = positions.map((p) =>
           p.symbol === symbol
             ? {
                 ...p,
                 shares: ns,
-                value: roundCurrency(ns * pos.price)
+                value: roundCurrency(ns * pos.price),
+                lastTradeTime: new Date().toLocaleString()
               }
             : p
         );
@@ -407,14 +431,16 @@ export function usePortfolio() {
     const pos = positions.find((p) => p.symbol === symbol);
     if (!pos) return false;
 
+    const { currency } = parseMarket(pos.symbol);
+    const settleValue = convertCurrency(pos.value, currency, cashCurrency, exchangeRates);
     const newPositions = positions.filter((p) => p.symbol !== symbol);
-    const newCash = roundCurrency(cash + pos.value);
+    const newCash = roundCurrency(cash + settleValue);
 
     setPositions(newPositions);
     setCash(newCash);
     log(makeLog('clear', pos.symbol, pos.name, '清仓', pos.shares, 0, pos.price, pos.tier, 0));
     return true;
-  }, [positions, cash, log]);
+  }, [positions, cash, exchangeRates, cashCurrency, log]);
 
   // 校正现金（不记录日志）
   const fixCash = useCallback((newCash) => {
