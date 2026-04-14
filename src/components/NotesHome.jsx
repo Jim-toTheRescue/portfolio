@@ -75,13 +75,13 @@ export default function NotesHome() {
                 <div className="portfolio-list" style={{ marginBottom: '24px' }}>
                   {portfolioSymbols.map(s => (
                     <div 
-                      key={s.symbol} 
+                      key={s.portfolioId} 
                       className="portfolio-card"
                       onClick={() => handleClick(s.symbol, s.name, s.portfolioId)}
                     >
                       <div className="portfolio-card-header">
                         <span className="portfolio-name" style={{ fontWeight: 'bold', color: 'var(--blue)' }}>
-                          {s.symbol}
+                          {s.portfolioId}
                         </span>
                       </div>
                       <div className="portfolio-stats">
