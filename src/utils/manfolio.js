@@ -258,12 +258,19 @@ export function getExchangeRates() {
   return data.exchangeRates || null;
 }
 
+import { getAllNotes } from './notes.js';
+
 /**
  * 导出全部数据
  */
-export function exportAllData() {
+export async function exportAllData() {
   const data = initManfolio();
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const notes = await getAllNotes();
+  const exportData = {
+    ...data,
+    notes: notes
+  };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -275,8 +282,12 @@ export function exportAllData() {
 /**
  * 导入全部数据
  */
-export function importAllData(data) {
+export async function importAllData(data) {
   if (data && data.portfolios) {
     saveManfolio(data);
+  }
+  if (data && data.notes && Array.isArray(data.notes)) {
+    const { importNotes } = await import('./notes.js');
+    await importNotes(data.notes);
   }
 }

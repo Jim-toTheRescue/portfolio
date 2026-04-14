@@ -149,3 +149,13 @@ export async function exportNotes() {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+export async function importNotes(notes) {
+  if (!notes || !Array.isArray(notes)) return;
+  const database = await openDB();
+  const transaction = database.transaction([STORE_NAME], 'readwrite');
+  const store = transaction.objectStore(STORE_NAME);
+  for (const note of notes) {
+    store.put(note);
+  }
+}
