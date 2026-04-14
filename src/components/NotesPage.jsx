@@ -64,7 +64,7 @@ export default function NotesPage() {
         getAllNotes().then(allNotes => {
           const counts = {};
           allNotes.forEach(note => {
-            if (!note.portfolioId) {
+            if (note.symbol) {
               counts[note.symbol] = (counts[note.symbol] || 0) + 1;
             }
           });
