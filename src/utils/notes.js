@@ -157,14 +157,14 @@ export async function getNotesByPortfolioId(portfolioId) {
 export async function getAllSymbols() {
   const notes = await getAllNotes();
   
-  // 股票评论卡片：按 symbol 分组
+  // 股票评论卡片：所有有 symbol 的评论（不管有没有 portfolioId）
   const stockSymbols = {};
-  // 组合评论卡片：按 portfolioId 分组
+  // 组合评论卡片：有 portfolioId 的评论
   const portfolioSymbols = {};
   
   notes.forEach(note => {
-    // 股票评论（无 portfolioId）
-    if (!note.portfolioId) {
+    // 股票评论：所有有 symbol 的
+    if (note.symbol) {
       if (!stockSymbols[note.symbol]) {
         stockSymbols[note.symbol] = { symbol: note.symbol, name: note.name, count: 0 };
       }
@@ -173,7 +173,7 @@ export async function getAllSymbols() {
         stockSymbols[note.symbol].updatedAt = note.updatedAt;
       }
     }
-    // 组合评论（有 portfolioId）
+    // 组合评论：有 portfolioId 的
     if (note.portfolioId) {
       if (!portfolioSymbols[note.portfolioId]) {
         portfolioSymbols[note.portfolioId] = { 
