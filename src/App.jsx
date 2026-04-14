@@ -40,6 +40,13 @@ function App() {
       const referrerPath = referrer.split('#')[1];
       if (referrerPath && (referrerPath.startsWith('/folio/') || referrerPath.startsWith('/notes'))) {
         backUrl = referrerPath;
+        // 如果是从portfolio页面跳转，设置active portfolio
+        if (referrerPath.startsWith('/folio/')) {
+          const portfolioId = referrerPath.split('/folio/')[1];
+          if (portfolioId) {
+            setActivePortfolio(portfolioId);
+          }
+        }
       }
     }
     window.sessionStorage.setItem('backUrl', backUrl);

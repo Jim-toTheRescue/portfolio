@@ -3,6 +3,10 @@
 ## 功能概述
 在 portfolio 页面点击股票，跳转到股票评论页面，查看和发表对某只股票的评论时间线。
 
+支持两种评论区：
+1. 股票评论区 - 针对单只股票的评论
+2. 组合评论区 - 针对整个组合的评论
+
 ## 入口
 - 在 TierCard 点击股票，跳转到 `/note/{symbol}` 页面
 - 或在 manfolio 首页增加菜单入口查看所有评论
@@ -13,13 +17,22 @@
 ```js
 {
   id: string,           // 唯一ID (UUID)
-  symbol: string,       // 股票代码 (如 AAPL, 00700.HK)
-  name: string,         // 股票名称 (如 苹果公司)
+  symbol: string,       // 股票代码 (如 AAPL, 00700.HK) 或 组合ID
+  name: string,         // 股票名称 (如 苹果公司) 或 组合名
   content: string,     // 评论内容
+  isSystem: boolean,   // 是否系统生成
+  parentId: string,    // 回复的评论ID
+  portfolioId: string, // 组合ID (组合评论时有值)
+  portfolioName: string, // 组合名
+  isPortfolio: boolean, // 是否为组合评论
   createdAt: string,   // 创建时间 (ISO string)
   updatedAt: string    // 更新时间 (ISO string)
 }
 ```
+
+### 区分规则
+- 股票评论: isPortfolio = false
+- 组合评论: isPortfolio = true
 
 ### 存储结构 (IndexedDB)
 - Database: `manfolio-notes`
@@ -28,19 +41,27 @@
 
 ## 页面设计
 
-### 1. 股票评论首页 `/notes`
-- 显示所有股票的评论时间线
-- 按股票代码分组，每组显示最新一条评论和时间
-- 点击股票进入该股票的详细评论页
+### 1. 股票评论首页 `/notes` (Mannote)
+- 显示所有评论区卡片
+- 按 isPortfolio 分组显示：
+  - 组合评论区 (isPortfolio=true)
+  - 股票评论区 (isPortfolio=false)
+- 点击卡片进入该评论区详情
 
 ### 2. 股票评论详情页 `/note/{symbol}`
 - 顶部显示股票代码和名称
 - 时间线展示该股票的所有评论（按时间倒序）
 - 可添加新评论、编辑已有评论
 
+### 3. 组合评论详情页 `/note/{portfolioId}?isPortfolio=true`
+- 顶部显示组合名
+- 显示组合股票评论区（组合持仓股票卡片列表）
+- 时间线展示组合的所有评论
+
 ### 传递参数
 - 从 TierCard 点击跳转时传递: symbol、name
 - URL 格式: `/note/AAPL` 或 `/note/AAPL?name=苹果公司`
+- 组合评论: `/note/{portfolioId}?name={name}&isPortfolio=true`
 
 ## 功能
 
@@ -64,6 +85,11 @@
 ## 导出功能
 - 导出全部评论到一个 JSON 文件
 - 文件名: `manfolio-notes-{日期}.json`
+
+## 组合股票评论区
+在组合评论详情页，显示该组合持仓的所有股票评论入口：
+- 点击股票卡片进入该股票的评论区
+- 显示各股票的评论数
 
 ## UI 布局参考
 

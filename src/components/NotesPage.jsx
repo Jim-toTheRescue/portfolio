@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from '../utils/router';
-import { getNotesBySymbol, addNote, updateNote, deleteNote } from '../utils/notes';
+import { getNotesBySymbol, getNotesByPortfolioId, getAllNotes, addNote, updateNote, deleteNote } from '../utils/notes';
 import { parseMarket } from '../utils/helpers';
+import { getActivePortfolio, setActivePortfolio } from '../utils/manfolio';
+import StockSymbol from './StockSymbol';
 
 export default function NotesPage() {
   const params = useParams();
@@ -11,6 +13,13 @@ export default function NotesPage() {
   const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const name = urlParams.get('name') || symbol;
   const isPortfolio = urlParams.get('isPortfolio') === 'true';
+
+  // 如果是portfolio评论区且URL有portfolioId，设置active portfolio
+  useEffect(() => {
+    if (isPortfolio && symbol) {
+      setActivePortfolio(symbol);
+    }
+  }, [isPortfolio, symbol]);
 
   const getBackUrl = () => {
     if (window.history.length > 1) {
@@ -38,7 +47,32 @@ export default function NotesPage() {
   const [inputContent, setInputContent] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showAddInput, setShowAddInput] = useState(false);
+  const [portfolioStocks, setPortfolioStocks] = useState([]);
+  const [stockCounts, setStockCounts] = useState({});
   const addInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isPortfolio) {
+      const p = getActivePortfolio();
+      if (p?.positions) {
+        const stocks = p.positions.map(pos => ({
+          symbol: pos.symbol,
+          name: pos.name || pos.symbol
+        }));
+        setPortfolioStocks(stocks);
+        // 加载各股票评论数
+        getAllNotes().then(allNotes => {
+          const counts = {};
+          allNotes.forEach(note => {
+            if (!note.portfolioId) {
+              counts[note.symbol] = (counts[note.symbol] || 0) + 1;
+            }
+          });
+          setStockCounts(counts);
+        });
+      }
+    }
+  }, [isPortfolio]);
 
   useEffect(() => {
     if (showAddInput && addInputRef.current) {
@@ -72,7 +106,12 @@ export default function NotesPage() {
   const handleAdd = async () => {
     if (!inputContent.trim()) return;
     try {
-      await addNote(symbol, name, inputContent.trim());
+      if (isPortfolio) {
+        const p = getActivePortfolio();
+        await addNote(symbol, name, inputContent.trim(), false, null, symbol, p?.name, true);
+      } else {
+        await addNote(symbol, name, inputContent.trim(), false, null, null, null, false);
+      }
       setInputContent('');
       setShowAddInput(false);
       loadNotes();
@@ -84,7 +123,12 @@ export default function NotesPage() {
   const handleReply = async (parentId) => {
     if (!inputContent.trim()) return;
     try {
-      await addNote(symbol, name, inputContent.trim(), false, parentId);
+      if (isPortfolio) {
+        const p = getActivePortfolio();
+        await addNote(symbol, name, inputContent.trim(), false, parentId, symbol, p?.name, true);
+      } else {
+        await addNote(symbol, name, inputContent.trim(), false, parentId, null, null, false);
+      }
       setInputContent('');
       setReplyingTo(null);
       loadNotes();
@@ -462,7 +506,7 @@ export default function NotesPage() {
           alignItems: 'center',
           gap: '8px'
         }}>
-          <span style={{ fontWeight: 'bold', color: 'var(--blue)' }}>{symbol}</span>
+          <StockSymbol symbol={symbol} style={{ fontWeight: 'bold' }} linkable={!isPortfolio} />
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{name}</span>
           {market && (
             <span style={{ 
@@ -480,6 +524,35 @@ export default function NotesPage() {
       </div>
 
       <div style={{ padding: '16px' }}>
+        {isPortfolio && portfolioStocks.length > 0 && (
+          <div style={{ marginTop: '12px', marginBottom: '12px' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>组合股票评论区</div>
+            <div style={{ display: 'flex', overflowX: 'auto', gap: '12px', paddingBottom: '8px' }}>
+              {portfolioStocks.map(stock => (
+                <div 
+                  key={stock.symbol}
+                  className="portfolio-card"
+                  style={{ minWidth: '200px', flexShrink: 0 }}
+                  onClick={() => navigate(`/note/${stock.symbol}?name=${encodeURIComponent(stock.name)}`)}
+                >
+                  <div className="portfolio-card-header">
+                    <StockSymbol symbol={stock.symbol} className="portfolio-name" style={{ fontWeight: 'bold' }} />
+                  </div>
+                  <div className="portfolio-stats">
+                    <div className="stat-item">
+                      <span className="stat-label">股票名</span>
+                      <span className="stat-value">{stock.name}</span>
+                    </div>
+                    <div className="stat-item">
+                      <span className="stat-label">评论数</span>
+                      <span className="stat-value">{stockCounts[stock.symbol] || 0}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {showAddInput && (
         <div style={{
           background: 'var(--bg-secondary)',

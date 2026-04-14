@@ -35,7 +35,7 @@ function generateId() {
   });
 }
 
-export async function addNote(symbol, name, content, isSystem = false, parentId = null, portfolioId = null, portfolioName = null) {
+export async function addNote(symbol, name, content, isSystem = false, parentId = null, portfolioId = null, portfolioName = null, isPortfolio = false) {
   const database = await openDB();
   return new Promise((resolve, reject) => {
     const now = new Date().toISOString();
@@ -48,6 +48,7 @@ export async function addNote(symbol, name, content, isSystem = false, parentId 
       parentId: parentId,
       portfolioId: portfolioId,
       portfolioName: portfolioName,
+      isPortfolio: isPortfolio || false,
       createdAt: now,
       updatedAt: now
     };
@@ -121,6 +122,11 @@ export async function getAllNotes() {
     };
     request.onerror = () => reject(request.error);
   });
+}
+
+export async function getNotesByPortfolioId(portfolioId) {
+  const notes = await getAllNotes();
+  return notes.filter(n => n.portfolioId === portfolioId);
 }
 
 export async function getAllSymbols() {

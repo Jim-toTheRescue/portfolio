@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getAllSymbols, exportNotes } from '../utils/notes';
+import { setActivePortfolio } from '../utils/manfolio';
 import { useRouter } from '../utils/router';
 
 export default function NotesHome() {
@@ -22,9 +23,17 @@ export default function NotesHome() {
     setLoading(false);
   };
 
-  const handleClick = (symbol, name) => {
-    navigate(`/note/${symbol}?name=${encodeURIComponent(name)}`);
+  const handleClick = (symbol, name, isPortfolio) => {
+    if (isPortfolio) {
+      setActivePortfolio(symbol);
+      navigate(`/note/${symbol}?name=${encodeURIComponent(name)}&isPortfolio=true`);
+    } else {
+      navigate(`/note/${symbol}?name=${encodeURIComponent(name)}`);
+    }
   };
+
+  const portfolioSymbols = useMemo(() => symbols.filter(s => s.isPortfolio), [symbols]);
+  const stockSymbols = useMemo(() => symbols.filter(s => !s.isPortfolio), [symbols]);
 
   if (loading) {
     return (
@@ -57,31 +66,73 @@ export default function NotesHome() {
             暂无评论
           </div>
         ) : (
-          <div className="portfolio-list">
-            {symbols.map(s => (
-              <div 
-                key={s.symbol} 
-                className="portfolio-card"
-                onClick={() => handleClick(s.symbol, s.name)}
-              >
-                <div className="portfolio-card-header">
-                  <span className="portfolio-name" style={{ fontWeight: 'bold', color: 'var(--blue)' }}>
-                    {s.symbol}
-                  </span>
+          <>
+            {portfolioSymbols.length > 0 && (
+              <>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  组合评论区
                 </div>
-                <div className="portfolio-stats">
-                  <div className="stat-item">
-                    <span className="stat-label">股票名</span>
-                    <span className="stat-value">{s.name}</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-label">评论数</span>
-                    <span className="stat-value">{s.count}</span>
-                  </div>
+                <div className="portfolio-list" style={{ marginBottom: '24px' }}>
+                  {portfolioSymbols.map(s => (
+                    <div 
+                      key={s.symbol} 
+                      className="portfolio-card"
+                      onClick={() => handleClick(s.symbol, s.name, s.isPortfolio)}
+                    >
+                      <div className="portfolio-card-header">
+                        <span className="portfolio-name" style={{ fontWeight: 'bold', color: 'var(--blue)' }}>
+                          {s.symbol}
+                        </span>
+                      </div>
+                      <div className="portfolio-stats">
+                        <div className="stat-item">
+                          <span className="stat-label">组合名</span>
+                          <span className="stat-value">{s.name}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">评论数</span>
+                          <span className="stat-value">{s.count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ))}
-          </div>
+              </>
+            )}
+
+            {stockSymbols.length > 0 && (
+              <>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                  股票评论区
+                </div>
+                <div className="portfolio-list">
+                  {stockSymbols.map(s => (
+                    <div 
+                      key={s.symbol} 
+                      className="portfolio-card"
+                      onClick={() => handleClick(s.symbol, s.name, s.isPortfolio)}
+                    >
+                      <div className="portfolio-card-header">
+                        <span className="portfolio-name" style={{ fontWeight: 'bold', color: 'var(--blue)' }}>
+                          {s.symbol}
+                        </span>
+                      </div>
+                      <div className="portfolio-stats">
+                        <div className="stat-item">
+                          <span className="stat-label">股票名</span>
+                          <span className="stat-value">{s.name}</span>
+                        </div>
+                        <div className="stat-item">
+                          <span className="stat-label">评论数</span>
+                          <span className="stat-value">{s.count}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
