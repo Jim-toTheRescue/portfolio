@@ -128,9 +128,10 @@ export default function NotesPage() {
     try {
       const parentNote = notes.find(n => n.id === parentId);
       const parentPortfolioId = parentNote?.portfolioId;
+      const parentSymbol = parentNote?.symbol;
       const p = getActivePortfolio();
-      // 组合评论区回复 symbol 为 null
-      const noteSymbol = portfolioId ? null : symbol;
+      // 子评论继承父评论的 symbol 和 portfolioId，确保同步到两边
+      const noteSymbol = parentSymbol || (portfolioId ? null : symbol);
       await addNote(noteSymbol, name, inputContent.trim(), false, parentId, parentPortfolioId || portfolioId, p?.name);
       setInputContent('');
       setReplyingTo(null);
