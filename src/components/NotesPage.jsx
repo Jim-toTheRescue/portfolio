@@ -129,10 +129,11 @@ export default function NotesPage() {
       const parentNote = notes.find(n => n.id === parentId);
       const parentPortfolioId = parentNote?.portfolioId;
       const parentSymbol = parentNote?.symbol;
+      const parentPortfolioName = parentNote?.portfolioName;
       const p = getActivePortfolio();
-      // 子评论继承父评论的 symbol 和 portfolioId，确保同步到两边
+      // 子评论继承父评论的 symbol, portfolioId 和 portfolioName，确保同步到两边
       const noteSymbol = parentSymbol || (portfolioId ? null : symbol);
-      await addNote(noteSymbol, name, inputContent.trim(), false, parentId, parentPortfolioId || portfolioId, p?.name);
+      await addNote(noteSymbol, name, inputContent.trim(), false, parentId, parentPortfolioId || portfolioId, parentPortfolioName || p?.name);
       setInputContent('');
       setReplyingTo(null);
       loadNotes();
@@ -305,7 +306,7 @@ export default function NotesPage() {
               </>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              {note.isSystem && note.portfolioId && (
+              {note.portfolioId && (
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '12px' }}>
                   来自组合: 
                   <span 
