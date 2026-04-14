@@ -8,6 +8,7 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
   const [symbol, setSymbol] = useState('');
   const [name, setName] = useState('输入代码后自动获取');
   const [fetchedPrice, setFetchedPrice] = useState(0);
+  const [price, setPrice] = useState('');
   const [shares, setShares] = useState('');
   const [cost, setCost] = useState(0);
   const [costPercent, setCostPercent] = useState(0);
@@ -20,6 +21,7 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
       setSymbol('');
       setName('输入代码后自动获取');
       setFetchedPrice(0);
+      setPrice('');
       setShares('');
       setCost(0);
       setCostPercent(0);
@@ -239,11 +241,12 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
 
   const handleConfirm = () => {
     const sharesNum = parseInt(shares) || 0;
-    if (!symbol || sharesNum <= 0 || fetchedPrice <= 0) return;
+    const priceVal = parseFloat(price) || fetchedPrice;
+    if (!symbol || sharesNum <= 0 || priceVal <= 0) return;
     if (warning) return;
     
     const fullSymbol = symbol + '.' + market;
-    onAdd(fullSymbol, name, sharesNum, fetchedPrice);
+    onAdd(fullSymbol, name, sharesNum, priceVal);
     onClose();
   };
 
@@ -283,8 +286,14 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
             <div className="form-text">{name}</div>
           </div>
           <div className="form-group">
-            <label className="form-label">当前价格</label>
-            <div className="form-text">{fetchedPrice > 0 ? `$${fetchedPrice}` : '-'}</div>
+            <label className="form-label">股价</label>
+            <input
+              type="number"
+              className="form-input"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder={fetchedPrice > 0 ? fetchedPrice.toString() : '输入或默认实时价'}
+            />
           </div>
           <div className="form-group">
             <label className="form-label">股数 *</label>
@@ -322,6 +331,7 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
 
 function AddPositionModal({ show, onClose, position, positions, cash, cashCurrency, displayCurrency, exchangeRates, onAdjust, getRecommendation }) {
   const [shares, setShares] = useState('');
+  const [price, setPrice] = useState('');
   const [cost, setCost] = useState(0);
   const [costPercent, setCostPercent] = useState(0);
   const [newPercent, setNewPercent] = useState(0);
@@ -331,9 +341,11 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
   useEffect(() => {
     if (!show || !position) {
       setShares('');
+      setPrice('');
       setWarning('');
     } else {
       setShares('');
+      setPrice(position.price?.toString() || '');
       if (getRecommendation) {
         const tier = position.tier || 3;
         const button = tier >= 2 ? 'UP' : '=';
@@ -438,8 +450,9 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
 
   const handleConfirm = () => {
     const sharesNum = parseInt(shares) || 0;
-    if (sharesNum <= 0) return;
-    onAdjust(position.symbol, sharesNum, true);
+    const priceVal = parseFloat(price) || position.price;
+    if (sharesNum <= 0 || !priceVal) return;
+    onAdjust(position.symbol, sharesNum, priceVal, true);
     onClose();
   };
 
@@ -481,6 +494,17 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
         <div className="modal-body">
           <div style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
             当前: {position?.shares || 0}股 · {posSymbol}{(position?.value || 0).toLocaleString()}{posCurrency !== displayCurrency ? ` ≈ ${displaySymbol}${displayValue.toLocaleString()}` : ''} ({currentPercent || 0}%)
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">股价</label>
+            <input
+              type="number"
+              className="form-input"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder={position.price?.toString() || ''}
+            />
           </div>
           
           <div className="form-group">
@@ -556,6 +580,7 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
 
 function ReducePositionModal({ show, onClose, position, positions, cash, cashCurrency, displayCurrency, exchangeRates, onAdjust, getRecommendation }) {
   const [shares, setShares] = useState('');
+  const [price, setPrice] = useState('');
   const [cost, setCost] = useState(0);
   const [costPercent, setCostPercent] = useState(0);
   const [newPercent, setNewPercent] = useState(0);
@@ -565,9 +590,11 @@ function ReducePositionModal({ show, onClose, position, positions, cash, cashCur
   useEffect(() => {
     if (!show || !position) {
       setShares('');
+      setPrice('');
       setWarning('');
     } else {
       setShares('');
+      setPrice(position.price?.toString() || '');
       if (getRecommendation) {
         const tier = position.tier || 3;
         const rec = getRecommendation(position.symbol, tier, 'DOWN', false);
@@ -631,8 +658,9 @@ function ReducePositionModal({ show, onClose, position, positions, cash, cashCur
 
   const handleConfirm = () => {
     const sharesNum = parseInt(shares) || 0;
-    if (sharesNum <= 0) return;
-    onAdjust(position.symbol, sharesNum, false);
+    const priceVal = parseFloat(price) || position.price;
+    if (sharesNum <= 0 || !priceVal) return;
+    onAdjust(position.symbol, sharesNum, priceVal, false);
     onClose();
   };
 
@@ -674,6 +702,17 @@ function ReducePositionModal({ show, onClose, position, positions, cash, cashCur
         <div className="modal-body">
           <div style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
             当前: {position?.shares || 0}股 · {posSymbol}{(position?.value || 0).toLocaleString()}{posCurrency !== displayCurrency ? ` ≈ ${displaySymbol}${displayValue.toLocaleString()}` : ''} ({currentPercent || 0}%)
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">股价</label>
+            <input
+              type="number"
+              className="form-input"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder={position.price?.toString() || ''}
+            />
           </div>
           
           <div className="form-group">
@@ -870,4 +909,103 @@ function RatesModal({ show, onClose, exchangeRates, onFetchRates }) {
   );
 }
 
-export { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal, RatesModal };
+function ClearPositionModal({ show, onClose, position, cash, cashCurrency, displayCurrency, exchangeRates, onClear }) {
+  const [price, setPrice] = useState('');
+  const [warning, setWarning] = useState('');
+
+  useEffect(() => {
+    if (!show || !position) {
+      setPrice('');
+      setWarning('');
+    } else {
+      setPrice(position.price?.toString() || '');
+    }
+  }, [show, position]);
+
+  const handleConfirm = () => {
+    const priceVal = parseFloat(price) || position.price;
+    if (!priceVal) return;
+    onClear(position.symbol, priceVal);
+    onClose();
+  };
+
+  if (!show || !position) return null;
+
+  const { currency: posCurrency } = parseMarket(position.symbol);
+  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const posSymbol = currencySymbols[posCurrency] || '$';
+  const cashSymbol = currencySymbols[cashCurrency] || '$';
+  const displaySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  const displaySymbol = displaySymbols[displayCurrency] || '$';
+  
+  const rawValue = position.shares * (parseFloat(price) || position.price);
+  const settleValue = convertCurrency(rawValue, posCurrency, cashCurrency, exchangeRates);
+  const currentValue = convertCurrency(position.value, posCurrency, displayCurrency, exchangeRates);
+  const displayValue = convertCurrency(settleValue, cashCurrency, displayCurrency, exchangeRates);
+  const costSettle = convertCurrency(position.shares * position.avgCost, posCurrency, cashCurrency, exchangeRates);
+  const pnlSettle = settleValue - costSettle;
+
+  return (
+    <div className="modal-overlay show" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span>清仓 {position.symbol} {position.name}</span>
+          <button className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <div className="modal-body">
+          <div style={{ marginBottom: '12px', color: 'var(--text-secondary)' }}>
+            当前: {position?.shares || 0}股 · {posSymbol}{(position?.value || 0).toLocaleString()}{displayCurrency !== posCurrency ? ` ≈ ${displaySymbol}${currentValue.toLocaleString()}` : ''}
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">股价</label>
+            <input
+              type="number"
+              className="form-input"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder={position.price?.toString() || ''}
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">清仓金额</label>
+            <div className="cost-display">
+              {cashSymbol}{(settleValue || 0).toLocaleString()}
+              {displayCurrency !== cashCurrency && (
+                <span className="percent"> ≈ {displaySymbol}{displayValue.toLocaleString()}</span>
+              )}
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">成本</label>
+            <div className="cost-display">
+              {cashSymbol}{(costSettle || 0).toLocaleString()}
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">预计盈亏</label>
+            <div className="cost-display" style={{ color: pnlSettle >= 0 ? 'var(--green)' : 'var(--red)' }}>
+              {cashSymbol}{(pnlSettle || 0).toLocaleString()}
+            </div>
+          </div>
+          
+          {warning && (
+            <div className="form-group">
+              <label className="form-label"></label>
+              <div className="form-input form-warning">{warning}</div>
+            </div>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-primary" onClick={handleConfirm}>确认清仓</button>
+          <button className="btn btn-secondary" onClick={onClose}>取消</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export { AddModal, AddPositionModal, ReducePositionModal, ClearPositionModal, CashModal, MockPriceModal, RatesModal };

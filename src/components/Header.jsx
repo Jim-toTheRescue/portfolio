@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { updatePortfolioName } from '../utils/manfolio';
+import { parseMarket, convertCurrency } from '../utils/helpers';
 
 function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onMockPrice, onConfig, onRates, portfolioName, onNameChange }) {
   const fileInputRef = useRef(null);
@@ -100,17 +101,18 @@ function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, 
   );
 }
 
-function Summary({ stockValue = 0, cash = 0, total = 0, priceTime, onCashClick, displayCurrency, cashCurrency, onCurrencyChange, history = [] }) {
+function Summary({ stockValue = 0, cash = 0, total = 0, totalInCashCurrency = 0, priceTime, onCashClick, displayCurrency, cashCurrency, onCurrencyChange, history = [], exchangeRates = {}, pnl = 0, pnlPercent = '0.0%', realizedPnL = 0, unrealizedPnL = 0 }) {
   const [showTip, setShowTip] = useState(false);
   const cashPercent = total > 0 ? ((cash / total) * 100).toFixed(1) : 0;
   const symbolMap = { USD: '$', HKD: 'hk$', CNY: '¥' };
   const displaySymbol = symbolMap[displayCurrency] || '$';
   const effectiveCash = cash + stockValue * 0.7;
+  const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
 
   // 计算年换手率（按自然年，只看卖出）
   let yearlyTurnover = '0%';
   let turnoverColor = 'inherit';
-  if (history.length > 0 && total > 0) {
+  if (history.length > 0 && totalInCashCurrency > 0) {
     const currentYear = new Date().getFullYear();
     const yearTradeAmount = history.reduce((sum, h) => {
       if (h.time && (h.action === '减仓' || h.action === '清仓')) {
@@ -118,14 +120,17 @@ function Summary({ stockValue = 0, cash = 0, total = 0, priceTime, onCashClick, 
           const tradeYear = new Date(h.time).getFullYear();
           if (tradeYear === currentYear) {
             if (h.adjShares && h.price) {
-              return sum + h.adjShares * h.price;
+              const { currency } = parseMarket(h.symbol || '.US');
+              const rawAmount = h.adjShares * h.price;
+              const converted = convertCurrency(rawAmount, currency, cashCurrency, exchangeRates);
+              return sum + converted;
             }
           }
         } catch (e) {}
       }
       return sum;
     }, 0);
-    const turnoverValue = (yearTradeAmount / total) * 100;
+    const turnoverValue = (yearTradeAmount / totalInCashCurrency) * 100;
     yearlyTurnover = turnoverValue.toFixed(1) + '%';
     if (turnoverValue > 100) {
       turnoverColor = 'var(--red)';
@@ -191,6 +196,12 @@ function Summary({ stockValue = 0, cash = 0, total = 0, priceTime, onCashClick, 
         <div className="summary-item">
           <span className="summary-label">年换手率</span>
           <span className="summary-value" style={{ color: turnoverColor }}>{yearlyTurnover}</span>
+        </div>
+        <div className="summary-item">
+          <span className="summary-label">组合盈亏</span>
+          <span className="summary-value" style={{ color: pnlColor }}>
+            {displaySymbol}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({pnlPercent})
+          </span>
         </div>
       </div>
       {priceTime && (

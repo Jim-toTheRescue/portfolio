@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { usePortfolio } from './hooks/usePortfolio';
 import { Header, Summary } from './components/Header';
 import TierCard from './components/TierCard';
-import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal, RatesModal } from './components/Modals';
+import { AddModal, AddPositionModal, ReducePositionModal, ClearPositionModal, CashModal, MockPriceModal, RatesModal } from './components/Modals';
 import { HistoryPanel, Toast } from './components/History';
 import ConfigModal from './components/ConfigModal';
 import { getConfig } from './utils/constants';
+import { parseMarket, convertCurrency } from './utils/helpers';
 import { useRouter } from './utils/router';
-import { initManfolio, setActivePortfolio, getActivePortfolio } from './utils/manfolio';
+import { initManfolio, setActivePortfolio, getActivePortfolio, getClosedPositions } from './utils/manfolio';
 import ManfolioHome from './components/ManfolioHome';
 import NotesHome from './components/NotesHome';
 import PortfolioApp from './PortfolioApp';
@@ -99,7 +100,8 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     getDisplayTotalWithCash,
     getDisplayStockValue,
     getDisplayCash,
-    getDisplayValue
+    getDisplayValue,
+    total: totalSettle,
   } = usePortfolio();
 
   // 进入页面时自动刷新价格
@@ -109,6 +111,25 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     }
   }, []);
 
+  // 计算组合盈亏
+  const closedPositions = getClosedPositions();
+  const pnlTotal = getDisplayTotalWithCash();
+  
+  const realizedSettle = closedPositions.reduce((sum, p) => {
+    const rawPnl = p.pnl || 0;
+    return sum + convertCurrency(rawPnl, p.currency, cashCurrency, exchangeRates);
+  }, 0);
+  const unrealizedSettle = positions.reduce((sum, p) => {
+    const { currency } = parseMarket(p.symbol);
+    const rawUnrealized = p.shares * (p.price - p.avgCost);
+    return sum + convertCurrency(rawUnrealized, currency, cashCurrency, exchangeRates);
+  }, 0);
+  
+  const realizedPnL = convertCurrency(realizedSettle, cashCurrency, displayCurrency, exchangeRates);
+  const unrealizedPnL = convertCurrency(unrealizedSettle, cashCurrency, displayCurrency, exchangeRates);
+  const totalPnL = realizedPnL + unrealizedPnL;
+  const pnlPercent = pnlTotal > 0 ? ((totalPnL / pnlTotal) * 100).toFixed(1) + '%' : '0.0%';
+
   const handleBack = () => {
     navigate('/manfolio');
   };
@@ -116,6 +137,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAddPositionModal, setShowAddPositionModal] = useState(false);
   const [showReducePositionModal, setShowReducePositionModal] = useState(false);
+  const [showClearPositionModal, setShowClearPositionModal] = useState(false);
   const [showCashModal, setShowCashModal] = useState(false);
   const [showMockPriceModal, setShowMockPriceModal] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -147,17 +169,15 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     }
   };
 
-  const [confirmClear, setConfirmClear] = useState(null);
-
   const handleClear = (symbol) => {
-    if (confirmClear === symbol) {
-      clearPosition(symbol);
-      setConfirmClear(null);
-    } else {
-      setConfirmClear(symbol);
-      setTimeout(() => setConfirmClear(null), 3000);
+    const pos = positions.find(p => p.symbol === symbol);
+    if (pos) {
+      setSelectedPosition(pos);
+      setShowClearPositionModal(true);
     }
   };
+
+  const [confirmClear, setConfirmClear] = useState(null);
 
   return (
     <div className="app">
@@ -183,12 +203,18 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         stockValue={getDisplayStockValue()}
         cash={getDisplayCash()}
         total={getDisplayTotalWithCash()}
+        totalInCashCurrency={totalSettle}
         priceTime={priceTime}
         onCashClick={() => setShowCashModal(true)}
         displayCurrency={displayCurrency}
         cashCurrency={cashCurrency}
         onCurrencyChange={changeDisplayCurrency}
         history={history}
+        exchangeRates={exchangeRates}
+        pnl={totalPnL}
+        pnlPercent={pnlPercent}
+        realizedPnL={realizedPnL}
+        unrealizedPnL={unrealizedPnL}
       />
 
       <div className="add-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -275,6 +301,20 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         exchangeRates={exchangeRates}
         onAdjust={adjustPosition}
         getRecommendation={getRecommendation}
+      />
+
+      <ClearPositionModal
+        show={showClearPositionModal}
+        onClose={() => {
+          setShowClearPositionModal(false);
+          setSelectedPosition(null);
+        }}
+        position={selectedPosition}
+        cash={cash}
+        cashCurrency={cashCurrency}
+        displayCurrency={displayCurrency}
+        exchangeRates={exchangeRates}
+        onClear={clearPosition}
       />
 
       <CashModal

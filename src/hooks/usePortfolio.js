@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates, getActivePortfolio, getActivePortfolioId } from '../utils/manfolio';
+import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates, getActivePortfolio, getActivePortfolioId, addClosedPosition } from '../utils/manfolio';
 import { getConfig, getTopTierAllowBuy } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
@@ -288,13 +288,15 @@ export function usePortfolio() {
   }, [positions, cash, log, showToast]);
 
   // 调仓
-  const adjustPosition = useCallback((symbol, adjShares, isAdd) => {
+  const adjustPosition = useCallback((symbol, adjShares, price, isAdd) => {
     const pos = positions.find((p) => p.symbol === symbol);
     if (!pos) return false;
 
-    const rawCost = adjShares * pos.price;
+    const priceVal = price || pos.price;
+    const rawCost = adjShares * priceVal;
     const { currency } = parseMarket(pos.symbol);
     const cost = convertCurrency(rawCost, currency, cashCurrency, exchangeRates);
+    const rawAvgCost = pos.shares * pos.avgCost + rawCost;  // 原始货币计算
     
     // 使用结算货币计算总价值
     const totalSettleCash = cash;
@@ -353,15 +355,15 @@ export function usePortfolio() {
       }
 
       const ns = pos.shares + adjShares;
-      const nc = pos.shares * pos.avgCost + cost;
-      const finalVal = roundCurrency(ns * pos.price);
+      const finalVal = roundCurrency(ns * priceVal);
       newPositions = positions.map((p) =>
         p.symbol === symbol
           ? {
               ...p,
               shares: ns,
-              avgCost: roundCurrency(nc / ns),
+              avgCost: roundCurrency(rawAvgCost / ns),
               value: finalVal,
+              price: priceVal,
               tier: p.tier,
               inBuffer: p.inBuffer,
               lastTradeTime: new Date().toLocaleString()
@@ -379,7 +381,7 @@ export function usePortfolio() {
           '加仓',
           adjShares,
           ns,
-          pos.price,
+          priceVal,
           pos.tier,
           pos.tier
         )
@@ -398,18 +400,21 @@ export function usePortfolio() {
           '清仓',
           adjShares,
           pos.shares,
-          pos.price,
+          priceVal,
           pos.tier,
           0
         )
       );
       } else {
+        const rawAvgCost = pos.shares * pos.avgCost - adjShares * priceVal;
         newPositions = positions.map((p) =>
           p.symbol === symbol
             ? {
                 ...p,
                 shares: ns,
-                value: roundCurrency(ns * pos.price),
+                avgCost: roundCurrency(rawAvgCost / ns),
+                value: roundCurrency(ns * priceVal),
+                price: priceVal,
                 lastTradeTime: new Date().toLocaleString()
               }
             : p
@@ -423,7 +428,7 @@ export function usePortfolio() {
             '减仓',
             adjShares,
             ns,
-            pos.price,
+            priceVal,
             pos.tier,
             pos.tier
           )
@@ -436,18 +441,23 @@ export function usePortfolio() {
   }, [positions, cash, log, showToast]);
 
   // 清仓
-  const clearPosition = useCallback((symbol) => {
+  const clearPosition = useCallback((symbol, price) => {
     const pos = positions.find((p) => p.symbol === symbol);
     if (!pos) return false;
 
     const { currency } = parseMarket(pos.symbol);
-    const settleValue = convertCurrency(pos.value, currency, cashCurrency, exchangeRates);
+    const priceVal = price || pos.price;
+    const rawValue = pos.shares * priceVal;
+    const settleValue = convertCurrency(rawValue, currency, cashCurrency, exchangeRates);
+    
+    addClosedPosition(pos.symbol, pos.name, pos.shares, pos.avgCost, priceVal, currency);
+    
     const newPositions = positions.filter((p) => p.symbol !== symbol);
     const newCash = roundCurrency(cash + settleValue);
 
     setPositions(newPositions);
     setCash(newCash);
-    log(makeLog('clear', pos.symbol, pos.name, '清仓', pos.shares, 0, pos.price, pos.tier, 0));
+    log(makeLog('clear', pos.symbol, pos.name, '清仓', pos.shares, 0, priceVal, pos.tier, 0));
     return true;
   }, [positions, cash, exchangeRates, cashCurrency, log]);
 

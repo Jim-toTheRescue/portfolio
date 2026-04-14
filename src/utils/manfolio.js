@@ -140,6 +140,7 @@ export function createPortfolio(name, config, settleCurrency = 'CNY', topTierAll
     config: config || defaultTIER,
     topTierAllowBuy: topTierAllowBuy || config?.length || 3,
     positions: [],
+    closedPositions: [],
     cash: 0,
     cashCurrency: settleCurrency,
     history: [],
@@ -187,6 +188,38 @@ export function updatePositions(positions) {
     p.positions = positions;
     saveCurrentPortfolio(p);
   }
+}
+
+/**
+ * 添加已清仓股票记录
+ */
+export function addClosedPosition(symbol, name, shares, avgCost, price, currency) {
+  const p = getActivePortfolio();
+  if (!p) return;
+  
+  if (!p.closedPositions) {
+    p.closedPositions = [];
+  }
+  const pnl = (price - avgCost) * shares;
+  p.closedPositions.push({
+    symbol,
+    name,
+    shares,
+    avgCost,
+    price,
+    pnl,
+    currency,
+    clearedAt: new Date().toISOString()
+  });
+  saveCurrentPortfolio(p);
+}
+
+/**
+ * 获取已实现盈亏
+ */
+export function getClosedPositions() {
+  const p = getActivePortfolio();
+  return p?.closedPositions || [];
 }
 
 /**
