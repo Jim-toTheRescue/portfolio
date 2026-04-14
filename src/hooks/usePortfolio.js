@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates, getActivePortfolio } from '../utils/manfolio';
+import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates, getActivePortfolio, getActivePortfolioId } from '../utils/manfolio';
 import { getConfig, getTopTierAllowBuy } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
@@ -66,9 +66,11 @@ export function usePortfolio() {
   const log = (entry) => {
     // 自动发布系统 note
     if (entry.action && ['建仓', '加仓', '减仓', '清仓'].includes(entry.action) && entry.symbol && entry.symbol !== '-') {
+      const p = getActivePortfolio();
+      const portfolioId = getActivePortfolioId();
       const actionText = { '建仓': '建仓', '加仓': '加仓', '减仓': '减仓', '清仓': '清仓' }[entry.action];
       const content = `${actionText} ${entry.adjShares}股 @ $${entry.price}`;
-      addNote(entry.symbol, entry.name || entry.symbol, content, true).catch(() => {});
+      addNote(entry.symbol, entry.name || entry.symbol, content, true, null, portfolioId, p?.name).catch(() => {});
     }
     
     setHistory((prev) => {
@@ -186,10 +188,10 @@ export function usePortfolio() {
         return false;
       }
       
-      // 检查是否超过可买梯队上限
+      // 检查是否超过可买梯队上限（tier数字越小=越高梯队）
       const targetTier = calculatedTier;
-      if (targetTier > maxTier) {
-        showToast(`超过可买梯队上限，当前只能买第${maxTier}梯队`);
+      if (targetTier < maxTier) {
+        showToast(`第${targetTier}梯队高于允许的第${maxTier}梯队，无法建仓`);
         return false;
       }
       
@@ -243,13 +245,13 @@ export function usePortfolio() {
       );
       newCash = roundCurrency(cash - cost);
     } else {
-      // 计算目标梯队
-      const newPercent = (cost / total) * 100;
-      const calculatedTier = getTargetTier(newPercent);
-      const maxTier = getTopTierAllowBuy();
-      const targetTier = Math.min(calculatedTier, maxTier);
-      
-      newPositions = [
+    // 计算目标梯队
+    const newPercent = (cost / total) * 100;
+    const calculatedTier = getTargetTier(newPercent);
+    // tier数字越小=越高梯队，maxTier=3表示只能买到第3梯队(最低)
+    const targetTier = calculatedTier;
+    
+    newPositions = [
         ...positions,
         {
           symbol,

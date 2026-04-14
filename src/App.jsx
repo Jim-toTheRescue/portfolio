@@ -184,9 +184,15 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         history={history}
       />
 
-      <div className="add-section">
+      <div className="add-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
           + 建仓
+        </button>
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => navigate(`/note/${folioId}?name=${encodeURIComponent(portfolioName)}&isPortfolio=true`)}
+        >
+          💬 评论
         </button>
       </div>
 

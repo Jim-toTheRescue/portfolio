@@ -35,7 +35,7 @@ function generateId() {
   });
 }
 
-export async function addNote(symbol, name, content, isSystem = false, parentId = null) {
+export async function addNote(symbol, name, content, isSystem = false, parentId = null, portfolioId = null, portfolioName = null) {
   const database = await openDB();
   return new Promise((resolve, reject) => {
     const now = new Date().toISOString();
@@ -46,6 +46,8 @@ export async function addNote(symbol, name, content, isSystem = false, parentId 
       content,
       isSystem: isSystem || false,
       parentId: parentId,
+      portfolioId: portfolioId,
+      portfolioName: portfolioName,
       createdAt: now,
       updatedAt: now
     };

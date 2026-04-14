@@ -8,19 +8,26 @@ export default function NotesPage() {
   const symbol = params.symbol;
   const { navigate } = useRouter();
 
+  const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+  const name = urlParams.get('name') || symbol;
+  const isPortfolio = urlParams.get('isPortfolio') === 'true';
+
   const getBackUrl = () => {
-    const saved = window.sessionStorage.getItem('backUrl');
-    if (saved && !saved.startsWith('/note/')) return saved;
-    return '/notes';
+    if (window.history.length > 1) {
+      return null;
+    }
+    return isPortfolio ? '/manfolio' : '/notes';
   };
 
   const goBack = () => {
-    navigate(getBackUrl());
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      navigate(getBackUrl());
+    }
   };
 
-  const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
-  const name = urlParams.get('name') || symbol;
-  const { market } = parseMarket(symbol);
+  const { market } = isPortfolio ? { market: null } : parseMarket(symbol);
   const marketLabels = { US: '美', HK: '港', SH: '沪', SZ: '深' };
 
   const [notes, setNotes] = useState([]);
@@ -212,24 +219,24 @@ export default function NotesPage() {
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                 {formatTime(note.createdAt)}
               </span>
-              {!note.isSystem && (
-                <>
-                  <button 
-                    onClick={() => {
-                      setReplyingTo(note);
-                      setInputContent('');
-                    }}
-                    style={{ 
-                      background: 'none', 
-                      border: 'none', 
-                      cursor: 'pointer',
-                      color: 'var(--blue)',
-                      fontSize: '0.75rem',
-                      marginLeft: '12px'
-                    }}
-                  >
-                    评论
-                  </button>
+              <>
+                <button 
+                  onClick={() => {
+                    setReplyingTo(note);
+                    setInputContent('');
+                  }}
+                  style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    cursor: 'pointer',
+                    color: 'var(--blue)',
+                    fontSize: '0.75rem',
+                    marginLeft: '12px'
+                  }}
+                >
+                  评论
+                </button>
+                {!note.isSystem && (
                   <button 
                     onClick={() => {
                       setEditingNote(note);
@@ -246,21 +253,37 @@ export default function NotesPage() {
                   >
                     编辑
                   </button>
-                </>
-              )}
+                )}
+              </>
             </div>
-            <button 
-              onClick={() => handleDelete(note.id)}
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                cursor: 'pointer',
-                color: confirmDelete === note.id ? 'red' : 'var(--text-secondary)',
-                fontSize: '0.85rem'
-              }}
-            >
-              {confirmDelete === note.id ? '确认' : '×'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {note.isSystem && note.portfolioId && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '12px' }}>
+                  来自组合: 
+                  <span 
+                    onClick={() => navigate(`/folio/${note.portfolioId}`)}
+                    style={{ 
+                      color: 'var(--blue)', 
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {note.portfolioName || note.portfolioId}
+                  </span>
+                </span>
+              )}
+              <button 
+                onClick={() => handleDelete(note.id)}
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  cursor: 'pointer',
+                  color: confirmDelete === note.id ? 'red' : 'var(--text-secondary)',
+                  fontSize: '0.85rem'
+                }}
+              >
+                {confirmDelete === note.id ? '确认' : '×'}
+              </button>
+            </div>
           </div>
           <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.5', fontSize: '0.9rem' }}>
             {editingNote?.id === note.id ? (
@@ -441,13 +464,15 @@ export default function NotesPage() {
         }}>
           <span style={{ fontWeight: 'bold', color: 'var(--blue)' }}>{symbol}</span>
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{name}</span>
-          <span style={{ 
-            fontSize: '0.7rem', 
-            padding: '2px 6px', 
-            background: 'var(--primary)',
-            borderRadius: '4px',
-            color: '#fff'
-          }}>{marketLabels[market] || ''}</span>
+          {market && (
+            <span style={{ 
+              fontSize: '0.7rem', 
+              padding: '2px 6px', 
+              background: 'var(--primary)',
+              borderRadius: '4px',
+              color: '#fff'
+            }}>{marketLabels[market]}</span>
+          )}
         </div>
         <div className="header-buttons">
           <button className="btn btn-secondary" onClick={() => setShowAddInput(!showAddInput)}>评论</button>

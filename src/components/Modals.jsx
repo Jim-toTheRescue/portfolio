@@ -127,8 +127,7 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
     if (costVal > cash) {
       setWarning('资金不足');
     } else if (fetchedPrice > 0 && sharesNum > 0) {
-      const newTotal = total + costVal;
-      const newPercent = (costVal / newTotal) * 100;
+      const newPercent = (costVal / total) * 100;
       
       const fullSymbol = symbol + '.' + market;
       const existing = positions.find(p => p.symbol === fullSymbol);
@@ -143,10 +142,15 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
           setWarning('');
         }
       } else {
-        // 新建仓检查
+        // 新建仓检查（tier数字越小=越高梯队，maxTier=3表示只能买到第3梯队(最低)）
         const calculatedTier = getTargetTier(newPercent);
         const maxTier = getTopTierAllowBuy();
-        const targetTier = Math.min(calculatedTier, maxTier);
+        // 如果计算的梯队高于允许的最高梯队，直接拦截
+        if (calculatedTier < maxTier) {
+          setWarning(`第${calculatedTier}梯队高于允许的第${maxTier}梯队，无法建仓`);
+          return;
+        }
+        const targetTier = calculatedTier;
         
         const targetTierConfig = getConfig()[targetTier - 1];
         const maxNewPercent = getUpperLimit(targetTier);

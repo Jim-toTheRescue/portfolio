@@ -133,9 +133,15 @@ function PortfolioApp() {
         onCurrencyChange={changeDisplayCurrency}
       />
 
-      <div className="add-section">
+      <div className="add-section" style={{ justifyContent: 'space-between' }}>
         <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
           + 建仓
+        </button>
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => navigate(`/note/${folioId}?name=${encodeURIComponent(portfolioName)}&isPortfolio=true`)}
+        >
+          💬 评论
         </button>
       </div>
 
