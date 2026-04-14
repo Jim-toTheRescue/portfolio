@@ -9,7 +9,9 @@ import { getConfig } from './utils/constants';
 import { useRouter } from './utils/router';
 import { initManfolio, setActivePortfolio, getActivePortfolio } from './utils/manfolio';
 import ManfolioHome from './components/ManfolioHome';
+import NotesHome from './components/NotesHome';
 import PortfolioApp from './PortfolioApp';
+import NotesPage from './components/NotesPage';
 import './styles/App.css';
 
 function App() {
@@ -24,11 +26,32 @@ function App() {
     return <ManfolioHome />;
   }
 
+  // 如果是笔记首页
+  if (path === '/notes') {
+    return <NotesHome />;
+  }
+
+  // 如果是笔记页面
+  if (path.startsWith('/note/')) {
+    // 保存返回路径
+    const referrer = document.referrer;
+    let backUrl = '/notes';
+    if (referrer) {
+      const referrerPath = referrer.split('#')[1];
+      if (referrerPath && (referrerPath.startsWith('/folio/') || referrerPath.startsWith('/notes'))) {
+        backUrl = referrerPath;
+      }
+    }
+    window.sessionStorage.setItem('backUrl', backUrl);
+    return <NotesPage />;
+  }
+
   // 如果是 portfolio 页面，使用 PortfolioApp
   if (path.startsWith('/folio/')) {
     const id = path.split('/folio/')[1];
     if (id) {
       setActivePortfolio(id);
+      window.sessionStorage.setItem('backUrl', path);
       return <PortfolioAppWrapper folioId={id} navigate={navigate} />;
     }
   }
@@ -178,6 +201,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             onAdd={handleAdd}
             onReduce={handleReduce}
             onClear={handleClear}
+            onNote={(symbol, name) => navigate(`/note/${symbol}?name=${encodeURIComponent(name)}`)}
             confirmClear={confirmClear}
             displayCurrency={displayCurrency}
             exchangeRates={exchangeRates}

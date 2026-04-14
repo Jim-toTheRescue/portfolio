@@ -1,7 +1,7 @@
 import { getConfig, getTierConfig } from '../utils/constants';
 import { tierName, getUpperLimit, parseMarket, convertCurrency } from '../utils/helpers';
 
-function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue }) {
+function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue }) {
   const tierIdx = position.tier - 1;
   const tierConfig = getConfig()[tierIdx] || getConfig()[2];
   
@@ -55,7 +55,11 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
   }
 
   return (
-    <div className={`position-item ${isBuffer ? 'position-buffer' : ''}`}>
+    <div 
+      className={`position-item ${isBuffer ? 'position-buffer' : ''}`}
+      onClick={() => onNote?.(position.symbol, position.name)}
+      style={{ cursor: 'pointer' }}
+    >
       <div className="position-info">
         <div className="position-code">
           {position?.symbol || ''} 
@@ -91,12 +95,12 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
         {recommendation && <div className="recommendation">{recommendation}</div>}
       </div>
       <div className="position-actions">
-        <button className="btn-small btn-primary" onClick={() => onAdd(position.symbol)}>加仓</button>
-        <button className="btn-small btn-danger" onClick={() => onReduce(position.symbol)}>减仓</button>
+        <button className="btn-small btn-primary" onClick={(e) => { e.stopPropagation(); onAdd(position.symbol); }}>加仓</button>
+        <button className="btn-small btn-danger" onClick={(e) => { e.stopPropagation(); onReduce(position.symbol); }}>减仓</button>
         {position.tier === getConfig().length && (
           <button 
             className="btn-small btn-secondary" 
-            onClick={() => onClear(position.symbol)}
+            onClick={(e) => { e.stopPropagation(); onClear(position.symbol); }}
             style={confirmClear === position.symbol ? { borderColor: 'var(--red)', color: 'var(--red)' } : {}}
           >
             {confirmClear === position.symbol ? '确认' : '清仓'}
@@ -111,7 +115,7 @@ function EmptySlot({ isBuffer }) {
   return <div className={`empty-slot ${isBuffer ? 'buffer' : ''}`}>{isBuffer ? '缓冲' : '空位'}</div>;
 }
 
-export default function TierCard({ tier, positions, cash, total, onAdd, onReduce, onClear, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, getDisplayTotalWithCash }) {
+export default function TierCard({ tier, positions, cash, total, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, getDisplayTotalWithCash }) {
   const tierConfig = getConfig()[tier - 1] || getConfig()[0];
   const mainPositions = positions.filter(p => p.tier === tier && !p.inBuffer);
   const bufferPositions = positions.filter(p => p.tier === tier && p.inBuffer);
@@ -165,6 +169,7 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
             onAdd={onAdd}
             onReduce={onReduce}
             onClear={onClear}
+            onNote={() => onNote?.(p.symbol, p.name)}
             confirmClear={confirmClear}
             displayCurrency={displayCurrency}
             exchangeRates={exchangeRates}
@@ -194,6 +199,7 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
                 onAdd={onAdd}
                 onReduce={onReduce}
                 onClear={onClear}
+                onNote={() => onNote?.(p.symbol, p.name)}
                 confirmClear={confirmClear}
                 displayCurrency={displayCurrency}
                 exchangeRates={exchangeRates}

@@ -3,6 +3,7 @@ import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateH
 import { getConfig, getTopTierAllowBuy } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
+import { addNote } from '../utils/notes';
 
 const defaultRates = { USD: 1, CNY: 7.10, HKD: 7.75 };
 
@@ -63,9 +64,15 @@ export function usePortfolio() {
 
   // 记录日志
   const log = (entry) => {
+    // 自动发布系统 note
+    if (entry.action && ['建仓', '加仓', '减仓', '清仓'].includes(entry.action) && entry.symbol && entry.symbol !== '-') {
+      const actionText = { '建仓': '建仓', '加仓': '加仓', '减仓': '减仓', '清仓': '清仓' }[entry.action];
+      const content = `${actionText} ${entry.adjShares}股 @ $${entry.price}`;
+      addNote(entry.symbol, entry.name || entry.symbol, content, true).catch(() => {});
+    }
+    
     setHistory((prev) => {
-      const newHistory = [entry, ...prev].slice(0, 100);
-      return newHistory;
+      return [entry, ...prev].slice(0, 100);
     });
   };
 

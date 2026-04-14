@@ -67,10 +67,16 @@ function ManfolioHome() {
   return (
     <div className="app">
       <div className="header">
-        <h1>Manfolio</h1>
+        <h1 
+          style={{ cursor: 'pointer' }}
+          title="切换到股票评论"
+          onClick={() => navigate('/notes')}
+        >
+          Manfolio
+        </h1>
         <div className="header-buttons">
-          <button className="btn btn-secondary" onClick={handleExportAll}>导出全部</button>
           <button className="btn btn-secondary" onClick={handleImportClick}>导入全部</button>
+          <button className="btn btn-secondary" onClick={handleExportAll}>导出全部</button>
           <input
             ref={fileInputRef}
             type="file"
