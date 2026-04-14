@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates } from '../utils/manfolio';
+import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates, getActivePortfolio } from '../utils/manfolio';
 import { getConfig, getTopTierAllowBuy } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
@@ -572,6 +572,8 @@ export function usePortfolio() {
 
   // 导出数据
   const exportData = useCallback(() => {
+    const p = getActivePortfolio();
+    const portfolioName = p?.name || 'portfolio';
     const exportData = {
       positions,
       cash,
@@ -582,7 +584,7 @@ export function usePortfolio() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `portfolio-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `portfolio-${portfolioName}-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
     showToast('导出成功');

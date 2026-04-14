@@ -100,6 +100,10 @@ function ManfolioHome() {
                 <span className="stat-label">总计</span>
                 <span className="stat-value">{p.cashCurrency === 'CNY' ? '¥' : p.cashCurrency === 'HKD' ? 'hk$' : '$'}{(p.total || 0).toLocaleString()}</span>
               </div>
+              <div className="stat-item">
+                <span className="stat-label">持仓</span>
+                <span className="stat-value">{p.positions?.length || 0}只</span>
+              </div>
             </div>
           </div>
         ))}

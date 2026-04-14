@@ -74,7 +74,8 @@ export function listPortfolios() {
       value: stockValue,
       cash: p.cash,
       total,
-      cashCurrency
+      cashCurrency,
+      positions: p.positions
     };
   });
 }
