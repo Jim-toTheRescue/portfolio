@@ -3,6 +3,7 @@
  */
 
 import { parseMarket, convertCurrency } from './helpers.js';
+import { generateId } from './notes.js';
 
 const KEY = 'manfolio';
 
@@ -132,9 +133,7 @@ export function createPortfolio(name, config, settleCurrency = 'CNY', topTierAll
   }
   const finalName = name && name.trim() ? name.trim() : `新Portfolio${num}`;
   
-  const ids = Object.keys(data.portfolios).filter(id => id.startsWith('p'));
-  const maxNum = ids.length > 0 ? Math.max(...ids.map(id => parseInt(id.slice(1)) || 0)) : 0;
-  const id = 'p' + (maxNum + 1);
+  const id = generateId();
   data.portfolios[id] = {
     name: finalName,
     config: config || defaultTIER,

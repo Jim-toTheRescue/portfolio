@@ -223,7 +223,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         </button>
         <button 
           className="btn btn-secondary" 
-          onClick={() => navigate(`/note/${folioId}?name=${encodeURIComponent(portfolioName)}&isPortfolio=true`)}
+          onClick={() => navigate(`/note/${folioId}?name=${encodeURIComponent(portfolioName)}&portfolioId=${folioId}`)}
         >
           💬 评论
         </button>

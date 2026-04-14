@@ -35,7 +35,9 @@ function generateId() {
   });
 }
 
-export async function addNote(symbol, name, content, isSystem = false, parentId = null, portfolioId = null, portfolioName = null, isPortfolio = false) {
+export { generateId };
+
+export async function addNote(symbol, name, content, isSystem = false, parentId = null, portfolioId = null, portfolioName = null) {
   const database = await openDB();
   return new Promise((resolve, reject) => {
     const now = new Date().toISOString();
@@ -48,7 +50,30 @@ export async function addNote(symbol, name, content, isSystem = false, parentId 
       parentId: parentId,
       portfolioId: portfolioId,
       portfolioName: portfolioName,
-      isPortfolio: isPortfolio || false,
+      createdAt: now,
+      updatedAt: now
+    };
+    const transaction = database.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.add(note);
+    request.onsuccess = () => resolve(note);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function addNoteWithId(existingId, symbol, name, content, isSystem = false, parentId = null, portfolioId = null, portfolioName = null) {
+  const database = await openDB();
+  return new Promise((resolve, reject) => {
+    const now = new Date().toISOString();
+    const note = {
+      id: existingId,
+      symbol,
+      name,
+      content,
+      isSystem: isSystem || false,
+      parentId: parentId,
+      portfolioId: portfolioId,
+      portfolioName: portfolioName,
       createdAt: now,
       updatedAt: now
     };
@@ -131,17 +156,47 @@ export async function getNotesByPortfolioId(portfolioId) {
 
 export async function getAllSymbols() {
   const notes = await getAllNotes();
-  const symbols = {};
+  
+  // 股票评论卡片：按 symbol 分组
+  const stockSymbols = {};
+  // 组合评论卡片：按 portfolioId 分组
+  const portfolioSymbols = {};
+  
   notes.forEach(note => {
-    if (!symbols[note.symbol]) {
-      symbols[note.symbol] = { ...note, count: 0 };
+    // 股票评论（无 portfolioId）
+    if (!note.portfolioId) {
+      if (!stockSymbols[note.symbol]) {
+        stockSymbols[note.symbol] = { symbol: note.symbol, name: note.name, count: 0 };
+      }
+      stockSymbols[note.symbol].count++;
+      if (new Date(note.updatedAt) > new Date(stockSymbols[note.symbol].updatedAt || 0)) {
+        stockSymbols[note.symbol].updatedAt = note.updatedAt;
+      }
     }
-    symbols[note.symbol].count++;
-    if (new Date(note.updatedAt) > new Date(symbols[note.symbol].updatedAt)) {
-      symbols[note.symbol].updatedAt = note.updatedAt;
+    // 组合评论（有 portfolioId）
+    if (note.portfolioId) {
+      if (!portfolioSymbols[note.portfolioId]) {
+        portfolioSymbols[note.portfolioId] = { 
+          portfolioId: note.portfolioId,
+          name: note.portfolioName,
+          count: 0 
+        };
+      }
+      portfolioSymbols[note.portfolioId].count++;
+      if (new Date(note.updatedAt) > new Date(portfolioSymbols[note.portfolioId].updatedAt || 0)) {
+        portfolioSymbols[note.portfolioId].updatedAt = note.updatedAt;
+      }
     }
   });
-  return Object.values(symbols).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  
+  const stockList = Object.values(stockSymbols).sort((a, b) => 
+    new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+  );
+  const portfolioList = Object.values(portfolioSymbols).sort((a, b) => 
+    new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0)
+  );
+  
+  return [...portfolioList, ...stockList];
 }
 
 export async function exportNotes() {

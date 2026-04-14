@@ -17,35 +17,44 @@
 ```js
 {
   id: string,           // 唯一ID (UUID)
-  symbol: string,       // 股票代码 (如 AAPL, 00700.HK) 或 组合ID
-  name: string,         // 股票名称 (如 苹果公司) 或 组合名
+  symbol: string,       // 股票代码 (如 AAPL, 00700.HK)
+  name: string,         // 股票名称 (如 苹果公司)
   content: string,     // 评论内容
   isSystem: boolean,   // 是否系统生成
   parentId: string,    // 回复的评论ID
   portfolioId: string, // 组合ID (组合评论时有值)
   portfolioName: string, // 组合名
-  isPortfolio: boolean, // 是否为组合评论
   createdAt: string,   // 创建时间 (ISO string)
   updatedAt: string    // 更新时间 (ISO string)
 }
 ```
 
 ### 区分规则
-- 股票评论: isPortfolio = false
-- 组合评论: isPortfolio = true
+- 股票评论: symbol 不为空
+- 组合评论: portfolioId 不为空
+- 一条评论可以同时有 symbol 和 portfolioId，此时会同时出现在股票评论区和组合评论区
+
+### 评论同步机制
+- **系统评论**：交易操作自动发布，同时有 symbol 和 portfolioId，会同时出现在股票评论区和组合评论区
+- **发评论**：使用当前页面的 portfolioId
+- **回复**：跟随父评论的 portfolioId，确保在同一评论区
+
+### URL 参数
+- 股票评论：`/note/{symbol}`
+- 组合评论：`/note/{symbol}?portfolioId={portfolioId}`
 
 ### 存储结构 (IndexedDB)
 - Database: `manfolio-notes`
 - Store: `notes`
-- Index: symbol (用于按股票查询)
+- Index: symbol, portfolioId
 
 ## 页面设计
 
 ### 1. 股票评论首页 `/notes` (Mannote)
 - 显示所有评论区卡片
-- 按 isPortfolio 分组显示：
-  - 组合评论区 (isPortfolio=true)
-  - 股票评论区 (isPortfolio=false)
+- 按 portfolioId 是否存在分组显示：
+  - 组合评论区 (portfolioId 有值)
+  - 股票评论区 (portfolioId 无值)
 - 点击卡片进入该评论区详情
 
 ### 2. 股票评论详情页 `/note/{symbol}`

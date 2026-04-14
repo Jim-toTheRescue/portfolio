@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getPortfolio, updatePositions, updateCash as saveCashToStorage, updateHistory, updatePriceTime, updateConfig, getExchangeRates, updateExchangeRates, getActivePortfolio, getActivePortfolioId, addClosedPosition } from '../utils/manfolio';
+import { addNote } from '../utils/notes';
 import { getConfig, getTopTierAllowBuy } from '../utils/constants';
 import { totalWithCash, getTargetTier, getUpperLimit, parseMarket, detectMarket, toApiSymbol, convertCurrency } from '../utils/helpers';
 import { autoRebalance, makeLog, calculateShares } from '../utils/portfolio';
-import { addNote } from '../utils/notes';
 
 const defaultRates = { USD: 1, CNY: 7.10, HKD: 7.75 };
 
@@ -69,7 +69,9 @@ export function usePortfolio() {
       const p = getActivePortfolio();
       const portfolioId = getActivePortfolioId();
       const actionText = { '建仓': '建仓', '加仓': '加仓', '减仓': '减仓', '清仓': '清仓' }[entry.action];
-      const content = `${actionText} ${entry.adjShares}股 @ $${entry.price}`;
+      const content = `${actionText} ${entry.symbol} ${entry.name || entry.symbol} ${entry.adjShares}股 @ $${entry.price}`;
+      
+      // 发布系统评论（同时有 symbol 和 portfolioId，会同时出现在股票评论区和组合评论区）
       addNote(entry.symbol, entry.name || entry.symbol, content, true, null, portfolioId, p?.name).catch(() => {});
     }
     

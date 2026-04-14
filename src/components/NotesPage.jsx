@@ -12,20 +12,20 @@ export default function NotesPage() {
 
   const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
   const name = urlParams.get('name') || symbol;
-  const isPortfolio = urlParams.get('isPortfolio') === 'true';
+  const portfolioId = urlParams.get('portfolioId');
 
-  // 如果是portfolio评论区且URL有portfolioId，设置active portfolio
+  // 如果是组合评论区且URL有portfolioId，设置active portfolio
   useEffect(() => {
-    if (isPortfolio && symbol) {
-      setActivePortfolio(symbol);
+    if (portfolioId && symbol) {
+      setActivePortfolio(portfolioId);
     }
-  }, [isPortfolio, symbol]);
+  }, [portfolioId, symbol]);
 
   const getBackUrl = () => {
     if (window.history.length > 1) {
       return null;
     }
-    return isPortfolio ? '/manfolio' : '/notes';
+    return portfolioId ? '/manfolio' : '/notes';
   };
 
   const goBack = () => {
@@ -36,7 +36,7 @@ export default function NotesPage() {
     }
   };
 
-  const { market } = isPortfolio ? { market: null } : parseMarket(symbol);
+  const { market } = portfolioId ? { market: null } : parseMarket(symbol);
   const marketLabels = { US: '美', HK: '港', SH: '沪', SZ: '深' };
 
   const [notes, setNotes] = useState([]);
@@ -52,7 +52,7 @@ export default function NotesPage() {
   const addInputRef = useRef(null);
 
   useEffect(() => {
-    if (isPortfolio) {
+    if (portfolioId) {
       const p = getActivePortfolio();
       if (p?.positions) {
         const stocks = p.positions.map(pos => ({
@@ -72,7 +72,7 @@ export default function NotesPage() {
         });
       }
     }
-  }, [isPortfolio]);
+  }, [portfolioId]);
 
   useEffect(() => {
     if (showAddInput && addInputRef.current) {
@@ -89,12 +89,17 @@ export default function NotesPage() {
 
   useEffect(() => {
     loadNotes();
-  }, [symbol]);
+  }, [symbol, portfolioId]);
 
   const loadNotes = async () => {
     setLoading(true);
     try {
-      const data = await getNotesBySymbol(symbol);
+      let data;
+      if (portfolioId) {
+        data = await getNotesByPortfolioId(portfolioId);
+      } else {
+        data = await getNotesBySymbol(symbol);
+      }
       setNotes(data);
       setExpandedNotes({});
     } catch (e) {
@@ -106,12 +111,9 @@ export default function NotesPage() {
   const handleAdd = async () => {
     if (!inputContent.trim()) return;
     try {
-      if (isPortfolio) {
-        const p = getActivePortfolio();
-        await addNote(symbol, name, inputContent.trim(), false, null, symbol, p?.name, true);
-      } else {
-        await addNote(symbol, name, inputContent.trim(), false, null, null, null, false);
-      }
+      const p = getActivePortfolio();
+      // 发评论使用当前页面的 portfolioId
+      await addNote(symbol, name, inputContent.trim(), false, null, portfolioId, p?.name);
       setInputContent('');
       setShowAddInput(false);
       loadNotes();
@@ -123,12 +125,11 @@ export default function NotesPage() {
   const handleReply = async (parentId) => {
     if (!inputContent.trim()) return;
     try {
-      if (isPortfolio) {
-        const p = getActivePortfolio();
-        await addNote(symbol, name, inputContent.trim(), false, parentId, symbol, p?.name, true);
-      } else {
-        await addNote(symbol, name, inputContent.trim(), false, parentId, null, null, false);
-      }
+      const parentNote = notes.find(n => n.id === parentId);
+      const parentPortfolioId = parentNote?.portfolioId;
+      const p = getActivePortfolio();
+      // 回复跟随父评论的 portfolioId，确保在同一评论区
+      await addNote(symbol, name, inputContent.trim(), false, parentId, parentPortfolioId || portfolioId, p?.name);
       setInputContent('');
       setReplyingTo(null);
       loadNotes();
@@ -506,7 +507,7 @@ export default function NotesPage() {
           alignItems: 'center',
           gap: '8px'
         }}>
-          <StockSymbol symbol={symbol} style={{ fontWeight: 'bold' }} linkable={!isPortfolio} />
+          <StockSymbol symbol={symbol} style={{ fontWeight: 'bold' }} linkable={!portfolioId} />
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{name}</span>
           {market && (
             <span style={{ 
@@ -524,7 +525,7 @@ export default function NotesPage() {
       </div>
 
       <div style={{ padding: '16px' }}>
-        {isPortfolio && portfolioStocks.length > 0 && (
+        {portfolioId && portfolioStocks.length > 0 && (
           <div style={{ marginTop: '12px', marginBottom: '12px' }}>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>组合股票评论区</div>
             <div style={{ display: 'flex', overflowX: 'auto', gap: '12px', paddingBottom: '8px' }}>

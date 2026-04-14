@@ -23,17 +23,17 @@ export default function NotesHome() {
     setLoading(false);
   };
 
-  const handleClick = (symbol, name, isPortfolio) => {
-    if (isPortfolio) {
-      setActivePortfolio(symbol);
-      navigate(`/note/${symbol}?name=${encodeURIComponent(name)}&isPortfolio=true`);
+  const handleClick = (symbol, name, portfolioId) => {
+    if (portfolioId) {
+      setActivePortfolio(portfolioId);
+      navigate(`/note/${symbol}?name=${encodeURIComponent(name)}&portfolioId=${portfolioId}`);
     } else {
       navigate(`/note/${symbol}?name=${encodeURIComponent(name)}`);
     }
   };
 
-  const portfolioSymbols = useMemo(() => symbols.filter(s => s.isPortfolio), [symbols]);
-  const stockSymbols = useMemo(() => symbols.filter(s => !s.isPortfolio), [symbols]);
+  const portfolioSymbols = useMemo(() => symbols.filter(s => s.portfolioId), [symbols]);
+  const stockSymbols = useMemo(() => symbols.filter(s => !s.portfolioId), [symbols]);
 
   if (loading) {
     return (
@@ -77,7 +77,7 @@ export default function NotesHome() {
                     <div 
                       key={s.symbol} 
                       className="portfolio-card"
-                      onClick={() => handleClick(s.symbol, s.name, s.isPortfolio)}
+                      onClick={() => handleClick(s.symbol, s.name, s.portfolioId)}
                     >
                       <div className="portfolio-card-header">
                         <span className="portfolio-name" style={{ fontWeight: 'bold', color: 'var(--blue)' }}>
@@ -110,7 +110,7 @@ export default function NotesHome() {
                     <div 
                       key={s.symbol} 
                       className="portfolio-card"
-                      onClick={() => handleClick(s.symbol, s.name, s.isPortfolio)}
+                      onClick={() => handleClick(s.symbol, s.name, s.portfolioId)}
                     >
                       <div className="portfolio-card-header">
                         <span className="portfolio-name" style={{ fontWeight: 'bold', color: 'var(--blue)' }}>
