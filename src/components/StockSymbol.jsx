@@ -13,7 +13,11 @@ export default function StockSymbol({ symbol, style = {}, linkable = true }) {
       onClick={(e) => {
         if (!linkable) return;
         e.stopPropagation();
-        window.open(`https://xueqiu.com/S/${xueqiuSymbol}`, '_blank');
+        const a = document.createElement('a');
+        a.href = `https://xueqiu.com/S/${xueqiuSymbol}`;
+        a.target = '_blank';
+        a.rel = 'noreferrer noopener';
+        a.click();
       }}
       style={{ 
         color: 'var(--blue)', 
