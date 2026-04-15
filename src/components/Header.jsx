@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { updatePortfolioName } from '../utils/manfolio';
 import { parseMarket, convertCurrency } from '../utils/helpers';
 
-function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onMockPrice, onConfig, onRates, portfolioName, onNameChange }) {
+function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onConfig, onRates, onStats, portfolioName, onNameChange, displayCurrency, onCurrencyChange }) {
   const fileInputRef = useRef(null);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -80,7 +80,11 @@ function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, 
             </span>
           )}
       </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Liquidity Matters!</span>
+      </div>
       <div className="header-buttons">
+        <button className="btn btn-secondary" onClick={onStats}>统计</button>
         <button className="btn btn-secondary" onClick={onRates}>汇率</button>
         <button className="btn btn-secondary" onClick={onRefresh}>刷新价格</button>
         <button className="btn btn-secondary" onClick={onClearHistory}>清历史</button>
@@ -94,8 +98,18 @@ function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, 
           className="hidden-input"
           onChange={handleFileChange}
         />
-        <button className="btn btn-secondary" onClick={onMockPrice}>Mock价格</button>
         <button className="btn btn-secondary" onClick={onConfig}>配置</button>
+        <button 
+          className="btn btn-secondary" 
+          onClick={() => {
+            const currencies = ['CNY', 'USD', 'HKD'];
+            const currentIdx = currencies.indexOf(displayCurrency);
+            const nextIdx = (currentIdx + 1) % currencies.length;
+            onCurrencyChange(currencies[nextIdx]);
+          }}
+        >
+          {displayCurrency === 'CNY' ? '¥' : displayCurrency === 'HKD' ? 'hk$' : '$'} {displayCurrency}
+        </button>
       </div>
     </div>
   );
@@ -142,21 +156,6 @@ function Summary({ stockValue = 0, cash = 0, total = 0, totalInCashCurrency = 0,
   return (
     <div className="summary">
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
-        <div className="summary-item">
-          <span className="summary-label">显示货币</span>
-          <span 
-            className="summary-value clickable" 
-            style={{ cursor: 'pointer', fontWeight: 600 }}
-            onClick={() => {
-              const currencies = ['USD', 'CNY', 'HKD'];
-              const currentIdx = currencies.indexOf(displayCurrency);
-              const nextIdx = (currentIdx + 1) % currencies.length;
-              onCurrencyChange?.(currencies[nextIdx]);
-            }}
-          >
-            {displaySymbol} {displayCurrency}
-          </span>
-        </div>
         <div className="summary-item">
           <span className="summary-label">总市值</span>
           <span className="summary-value">{displaySymbol}{(stockValue || 0).toLocaleString()}</span>

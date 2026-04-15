@@ -323,3 +323,73 @@ export async function importAllData(data) {
     await importNotes(data.notes);
   }
 }
+
+/**
+ * 保存净值记录到 portfolio 内部
+ */
+export function saveNetValue(portfolioId, totalValue, nasdaq100, hsi, sp500) {
+  const data = initManfolio();
+  const portfolio = data.portfolios[portfolioId];
+  if (!portfolio) return;
+  
+  const today = new Date().toISOString().split('T')[0];
+  
+  if (!portfolio.netValueHistory) {
+    portfolio.netValueHistory = [];
+  }
+  
+  const existing = portfolio.netValueHistory.findIndex(r => r.date === today);
+  const record = {
+    date: today,
+    value: totalValue,
+    nasdaq100: nasdaq100,
+    hsi: hsi,
+    sp500: sp500
+  };
+  
+  if (existing >= 0) {
+    portfolio.netValueHistory[existing] = record;
+  } else {
+    portfolio.netValueHistory.push(record);
+  }
+  
+  saveManfolio(data);
+}
+
+/**
+ * 获取净值历史
+ */
+export function getNetValueHistory(portfolioId) {
+  const data = initManfolio();
+  const portfolio = data.portfolios[portfolioId];
+  return portfolio?.netValueHistory || [];
+}
+
+/**
+ * 检查是否可以采集净值（每周周日才允许）
+ */
+export function canRecordNetValue(portfolioId) {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  
+  // 只有周日（0）才允许采集
+  if (dayOfWeek !== 0) return false;
+  
+  const history = getNetValueHistory(portfolioId);
+  if (history.length === 0) return true;
+  
+  const lastDate = history[history.length - 1].date;
+  const todayStr = today.toISOString().split('T')[0];
+  
+  // 同一周不能重复采集
+  if (lastDate === todayStr) return false;
+  
+  // 检查是否同属一个周日周期（上周日到这周日）
+  const last = new Date(lastDate);
+  const lastWeekStart = new Date(last);
+  lastWeekStart.setDate(last.getDate() - last.getDay());
+  const currentWeekStart = new Date(today);
+  currentWeekStart.setDate(today.getDate() - today.getDay());
+  
+  return currentWeekStart.getTime() > lastWeekStart.getTime();
+}

@@ -13,6 +13,7 @@ import ManfolioHome from './components/ManfolioHome';
 import NotesHome from './components/NotesHome';
 import PortfolioApp from './PortfolioApp';
 import NotesPage from './components/NotesPage';
+import StatsPage from './components/StatsPage';
 import './styles/App.css';
 
 function App() {
@@ -52,6 +53,15 @@ function App() {
     }
     window.sessionStorage.setItem('backUrl', backUrl);
     return <NotesPage />;
+  }
+
+  // 如果是统计页面
+  if (path.startsWith('/stats')) {
+    const portfolioId = path.split('/stats/')[1];
+    if (portfolioId) {
+      return <StatsPage portfolioId={portfolioId} />;
+    }
+    return <StatsPage />;
   }
 
   // 如果是 portfolio 页面，使用 PortfolioApp
@@ -192,11 +202,13 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         }}
         onToggleHistory={() => setShowHistory(!showHistory)}
         onExport={exportData}
-        onMockPrice={() => setShowMockPriceModal(true)}
         onConfig={() => setShowConfigModal(true)}
         onRates={() => setShowRatesModal(true)}
+        onStats={() => navigate(`/stats/${folioId}`)}
         portfolioName={portfolioName}
         onNameChange={() => setNameKey(k => k + 1)}
+        displayCurrency={displayCurrency}
+        onCurrencyChange={changeDisplayCurrency}
       />
 
       <Summary

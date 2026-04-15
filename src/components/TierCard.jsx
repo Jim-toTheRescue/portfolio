@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { getConfig, getTierConfig } from '../utils/constants';
-import { tierName, getUpperLimit, parseMarket, convertCurrency } from '../utils/helpers';
+import { tierName, getUpperLimit, parseMarket, convertCurrency, getCurrencySymbol } from '../utils/helpers';
 
-function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, showToast }) {
+function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, showToast, showProfit, onToggleProfit }) {
   const tierIdx = position.tier - 1;
   const tierConfig = getConfig()[tierIdx] || getConfig()[2];
   
@@ -15,8 +16,7 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
   
   // 获取显示货币的值
   const displayValue = getDisplayValue ? getDisplayValue(position.value, position.symbol) : settleValue;
-  const displayCurrencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const displaySymbol = displayCurrencySymbols[displayCurrency] || '$';
+  const displaySymbol = getCurrencySymbol(displayCurrency);
   const showConvertedValue = currency !== displayCurrency;
   
   const driftClass = Math.abs(drift) <= 2 ? 'drift-normal' : Math.abs(drift) <= 5 ? 'drift-warning' : 'drift-critical';
@@ -40,8 +40,7 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
   const marketLabels = { US: '美', HK: '港', SH: '沪', SZ: '深' };
   
   // 货币符号
-  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const currencySymbol = currencySymbols[currency] || '$';
+  const currencySymbol = getCurrencySymbol(currency);
 
   // 最新交易时间
   let lastTradeColor = null;
@@ -76,8 +75,28 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
         <div className="position-name">
           {position?.shares || 0}股 · {currencySymbol}{position?.price || 0}
           {priceChange !== 0 && (
-            <span className={`price-change-tag ${priceChangeClass}`}>
-              {priceChange > 0 ? '+' : ''}{priceChange}%
+            <span 
+              className={`price-change-tag ${priceChangeClass}`}
+              onClick={(e) => { e.stopPropagation(); onToggleProfit(position.symbol); }}
+              style={{ cursor: 'pointer' }}
+              title={showProfit ? '持仓变动' : '当日变动'}
+            >
+              {showProfit ? (
+                <>
+                  {(() => {
+                    const profitPercent = position.avgCost > 0 ? ((position.price - position.avgCost) / position.avgCost * 100) : 0;
+                    return (
+                      <span className={profitPercent >= 0 ? 'price-up' : 'price-down'}>
+                        {profitPercent > 0 ? '+' : ''}{profitPercent.toFixed(1)}%
+                      </span>
+                    );
+                  })()}
+                </>
+              ) : (
+                <>
+                  {priceChange > 0 ? '+' : ''}{priceChange}%
+                </>
+              )}
             </span>
           )}
         </div>
@@ -127,6 +146,7 @@ function EmptySlot({ isBuffer }) {
 }
 
 export default function TierCard({ tier, positions, cash, total, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, getDisplayTotalWithCash, showToast }) {
+  const [profitSymbol, setProfitSymbol] = useState(null);
   const tierConfig = getConfig()[tier - 1] || getConfig()[0];
   const mainPositions = positions.filter(p => p.tier === tier && !p.inBuffer);
   const bufferPositions = positions.filter(p => p.tier === tier && p.inBuffer);
@@ -187,6 +207,8 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
             cashCurrency={cashCurrency}
             getDisplayValue={getDisplayValue}
             showToast={showToast}
+            showProfit={profitSymbol === p.symbol}
+            onToggleProfit={(symbol) => setProfitSymbol(profitSymbol === symbol ? null : symbol)}
           />
         ))}
         
@@ -218,6 +240,8 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
                 cashCurrency={cashCurrency}
                 getDisplayValue={getDisplayValue}
                 showToast={showToast}
+                showProfit={profitSymbol === p.symbol}
+                onToggleProfit={(symbol) => setProfitSymbol(profitSymbol === symbol ? null : symbol)}
               />
             ))}
             

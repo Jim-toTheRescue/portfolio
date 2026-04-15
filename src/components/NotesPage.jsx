@@ -524,6 +524,7 @@ export default function NotesPage() {
           )}
         </div>
         <div className="header-buttons">
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginRight: '8px' }}>Liquidity Matters!</span>
           <button className="btn btn-secondary" onClick={() => setShowAddInput(!showAddInput)}>评论</button>
         </div>
       </div>

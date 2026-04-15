@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { initManfolio, listPortfolios, createPortfolio, deletePortfolio, setActivePortfolio, exportAllData, importAllData } from '../utils/manfolio';
+import { initManfolio, listPortfolios, createPortfolio, deletePortfolio, setActivePortfolio, exportAllData, importAllData, getActivePortfolio } from '../utils/manfolio';
 import { useRouter } from '../utils/router';
 import CreatePortfolioModal from './CreatePortfolioModal';
 
@@ -9,6 +9,14 @@ function ManfolioHome() {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const { navigate } = useRouter();
   const fileInputRef = useRef(null);
+  const [displayCurrency, setDisplayCurrency] = useState('CNY');
+
+  useEffect(() => {
+    const portfolio = getActivePortfolio();
+    if (portfolio?.cashCurrency) {
+      setDisplayCurrency(portfolio.cashCurrency);
+    }
+  }, [portfolios]);
 
   const handleExportAll = () => {
     exportAllData();
@@ -74,6 +82,9 @@ function ManfolioHome() {
         >
           Manfolio
         </h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Liquidity Matters!</span>
+        </div>
         <div className="header-buttons">
           <button className="btn btn-secondary" onClick={handleImportClick}>导入全部</button>
           <button className="btn btn-secondary" onClick={handleExportAll}>导出全部</button>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getConfig, getTierConfig, getTopTierAllowBuy } from '../utils/constants';
-import { getUpperLimit, getTargetTier, totalWithCash, detectMarket, toApiSymbol, parseMarket, convertCurrency } from '../utils/helpers';
+import { getUpperLimit, getTargetTier, totalWithCash, detectMarket, toApiSymbol, parseMarket, convertCurrency, getCurrencySymbol } from '../utils/helpers';
 import { calculateShares } from '../utils/portfolio';
 
 // 新建仓位弹窗
@@ -477,11 +477,9 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
   const currentPercent = total > 0 ? (Math.floor((posValueSettle / total) * 10000) / 100).toFixed(2) : '0.00';
   const tier = position.tier;
   // 显示用原生货币符号
-  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const posSymbol = currencySymbols[posCurrency] || '$';
+  const posSymbol = getCurrencySymbol(posCurrency);
   // 显示货币转换
-  const displaySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const displaySymbol = displaySymbols[displayCurrency] || '$';
+  const displaySymbol = getCurrencySymbol(displayCurrency);
   const displayValue = convertCurrency(position.value, posCurrency, displayCurrency, exchangeRates);
 
   return (
@@ -685,11 +683,9 @@ function ReducePositionModal({ show, onClose, position, positions, cash, cashCur
   const currentPercent = total > 0 ? (Math.floor((posValueSettle / total) * 10000) / 100).toFixed(2) : '0.00';
   const tier = position.tier;
   // 显示用原生货币符号
-  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const posSymbol = currencySymbols[posCurrency] || '$';
+  const posSymbol = getCurrencySymbol(posCurrency);
   // 显示货币转换
-  const displaySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const displaySymbol = displaySymbols[displayCurrency] || '$';
+  const displaySymbol = getCurrencySymbol(displayCurrency);
   const displayValue = convertCurrency(position.value, posCurrency, displayCurrency, exchangeRates);
 
   return (
@@ -785,8 +781,7 @@ function CashModal({ show, onClose, cash, onConfirm, onConfirmWithLog, displayCu
 
   if (!show) return null;
 
-  const currencySymbol = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const symbol = currencySymbol[cashCurrency] || '$';
+  const symbol = getCurrencySymbol(cashCurrency);
 
   return (
     <div className="modal-overlay show" onClick={onClose}>
@@ -932,11 +927,9 @@ function ClearPositionModal({ show, onClose, position, cash, cashCurrency, displ
   if (!show || !position) return null;
 
   const { currency: posCurrency } = parseMarket(position.symbol);
-  const currencySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const posSymbol = currencySymbols[posCurrency] || '$';
-  const cashSymbol = currencySymbols[cashCurrency] || '$';
-  const displaySymbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
-  const displaySymbol = displaySymbols[displayCurrency] || '$';
+  const posSymbol = getCurrencySymbol(posCurrency);
+  const cashSymbol = getCurrencySymbol(cashCurrency);
+  const displaySymbol = getCurrencySymbol(displayCurrency);
   
   const rawValue = position.shares * (parseFloat(price) || position.price);
   const settleValue = convertCurrency(rawValue, posCurrency, cashCurrency, exchangeRates);

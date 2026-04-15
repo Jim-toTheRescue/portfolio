@@ -218,3 +218,13 @@ export function formatCurrency(value, currency) {
   const symbol = symbols[currency] || '';
   return `${symbol}${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/**
+ * 获取货币符号
+ * @param {string} currency - 货币 USD/HKD/CNY
+ * @returns {string} 货币符号
+ */
+export function getCurrencySymbol(currency) {
+  const symbols = { USD: '$', HKD: 'hk$', CNY: '¥' };
+  return symbols[currency] || '$';
+}

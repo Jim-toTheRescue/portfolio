@@ -115,11 +115,12 @@ function PortfolioApp() {
         }}
         onToggleHistory={() => setShowHistory(!showHistory)}
         onExport={exportData}
-        onMockPrice={() => setShowMockPriceModal(true)}
         onConfig={() => setShowConfigModal(true)}
         onRates={() => setShowRatesModal(true)}
         portfolioName={portfolioName}
         onNameChange={() => forceUpdate(n => n + 1)}
+        displayCurrency={displayCurrency}
+        onCurrencyChange={changeDisplayCurrency}
       />
 
       <Summary
