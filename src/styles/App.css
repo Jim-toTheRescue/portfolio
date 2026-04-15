@@ -148,6 +148,11 @@ body {
   border: 1px solid var(--border);
 }
 
+.btn-small:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Summary */
 .summary {
   display: flex;
@@ -698,7 +703,8 @@ body {
   opacity: 1;
 }
 
-.toast.error {
+.toast.error,
+.toast.toast-error {
   border-color: var(--red);
   color: var(--red);
 }
@@ -715,6 +721,13 @@ body {
 
 .price-down {
   color: var(--red);
+}
+
+.price-change-tag {
+  margin-left: 6px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 11px;
 }
 
 /* Hidden file input */

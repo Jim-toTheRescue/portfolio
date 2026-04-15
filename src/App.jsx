@@ -247,6 +247,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             cashCurrency={cashCurrency}
             getDisplayValue={getDisplayValue}
             getDisplayTotalWithCash={getDisplayTotalWithCash}
+            showToast={showToast}
             history={history}
           />
         ))}
@@ -348,7 +349,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onFetchRates={fetchExchangeRates}
       />
 
-      <Toast message={toast} />
+      <Toast message={toast?.msg} type={toast?.type} />
     </div>
   );
 }

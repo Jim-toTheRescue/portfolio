@@ -57,8 +57,8 @@ export function usePortfolio() {
   }, [exchangeRates]);
 
   // 显示Toast
-  const showToast = useCallback((msg) => {
-    setToast(msg);
+  const showToast = useCallback((msg, type) => {
+    setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
 
@@ -530,7 +530,7 @@ export function usePortfolio() {
         }
 
         const price = parseFloat(fields[3]);
-        const change = parseFloat(fields[31] || 0);
+        const change = parseFloat(fields[32] || 0);
         const timeStr = fields[30];
 
         if (timeStr && timeStr.length >= 19) {
@@ -539,7 +539,7 @@ export function usePortfolio() {
 
         if (!isNaN(price) && price > 0) {
           newPositions.forEach((p) => {
-            if (p.symbol === symbol && price !== p.price) {
+            if (p.symbol === symbol) {
               p.price = price;
               p.priceChange = change;
               p.value = roundCurrency(p.shares * price);

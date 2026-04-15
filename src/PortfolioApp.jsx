@@ -162,13 +162,14 @@ function PortfolioApp() {
             cashCurrency={cashCurrency}
             getDisplayValue={getDisplayValue}
             getDisplayTotalWithCash={getDisplayTotalWithCash}
+            showToast={showToast}
           />
         ))}
       </div>
 
       <HistoryPanel show={showHistory} history={history} onToggle={() => setShowHistory(false)} onClear={clearHistory} />
 
-      <Toast message={toast} />
+      <Toast message={toast?.msg} type={toast?.type} />
 
       <AddModal
         show={showAddModal}

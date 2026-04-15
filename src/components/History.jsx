@@ -95,9 +95,9 @@ function HistoryPanel({ show, history, onToggle, onClear }) {
   );
 }
 
-function Toast({ message }) {
+function Toast({ message, type }) {
   if (!message) return null;
-  return <div className="toast show">{message}</div>;
+  return <div className={`toast show ${type === 'error' ? 'toast-error' : ''}`}>{message}</div>;
 }
 
 export { HistoryPanel, Toast };
