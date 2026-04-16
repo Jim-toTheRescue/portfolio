@@ -5,6 +5,7 @@ import TierCard from './components/TierCard';
 import { AddModal, AddPositionModal, ReducePositionModal, CashModal, MockPriceModal, RatesModal } from './components/Modals';
 import { HistoryPanel, Toast } from './components/History';
 import ConfigModal from './components/ConfigModal';
+import BacktestModal from './components/BacktestModal';
 import { getConfig } from './utils/constants';
 import { useRouter } from './utils/router';
 import { getActivePortfolio } from './utils/manfolio';
@@ -43,6 +44,7 @@ function PortfolioApp() {
     getDisplayTotalWithCash,
     getDisplayStockValue,
     getDisplayCash,
+    getDisplayValue,
     cashCurrency
   } = usePortfolio();
 
@@ -61,6 +63,7 @@ function PortfolioApp() {
   const [showHistory, setShowHistory] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showRatesModal, setShowRatesModal] = useState(false);
+  const [showBacktestModal, setShowBacktestModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
 
   // 监听导入事件
@@ -117,6 +120,7 @@ function PortfolioApp() {
         onExport={exportData}
         onConfig={() => setShowConfigModal(true)}
         onRates={() => setShowRatesModal(true)}
+        onBacktest={() => setShowBacktestModal(true)}
         portfolioName={portfolioName}
         onNameChange={() => forceUpdate(n => n + 1)}
         displayCurrency={displayCurrency}
@@ -247,6 +251,14 @@ function PortfolioApp() {
         exchangeRates={exchangeRates}
         onFetchRates={fetchExchangeRates}
         onSetRate={setManualRate}
+      />
+
+      <BacktestModal
+        show={showBacktestModal}
+        onClose={() => setShowBacktestModal(false)}
+        positions={positions}
+        exchangeRates={exchangeRates}
+        cashCurrency={cashCurrency}
       />
     </div>
   );

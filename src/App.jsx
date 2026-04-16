@@ -14,6 +14,7 @@ import NotesHome from './components/NotesHome';
 import PortfolioApp from './PortfolioApp';
 import NotesPage from './components/NotesPage';
 import StatsPage from './components/StatsPage';
+import BacktestPage from './components/BacktestPage';
 import './styles/App.css';
 
 function App() {
@@ -62,6 +63,12 @@ function App() {
       return <StatsPage portfolioId={portfolioId} />;
     }
     return <StatsPage />;
+  }
+
+  // 如果是回测页面
+  if (path.startsWith('/backtest/')) {
+    const portfolioId = path.split('/backtest/')[1];
+    return <BacktestPage portfolioId={portfolioId} />;
   }
 
   // 如果是 portfolio 页面，使用 PortfolioApp
@@ -205,6 +212,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onConfig={() => setShowConfigModal(true)}
         onRates={() => setShowRatesModal(true)}
         onStats={() => navigate(`/stats/${folioId}`)}
+        onBacktestPage={() => navigate(`/backtest/${folioId}`)}
         portfolioName={portfolioName}
         onNameChange={() => setNameKey(k => k + 1)}
         displayCurrency={displayCurrency}

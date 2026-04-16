@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { updatePortfolioName } from '../utils/manfolio';
 import { parseMarket, convertCurrency } from '../utils/helpers';
 
-function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onConfig, onRates, onStats, portfolioName, onNameChange, displayCurrency, onCurrencyChange }) {
+function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onConfig, onRates, onStats, onBacktest, onBacktestPage, portfolioName, onNameChange, displayCurrency, onCurrencyChange }) {
   const fileInputRef = useRef(null);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -86,6 +86,7 @@ function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, 
       <div className="header-buttons">
         <button className="btn btn-secondary" onClick={onStats}>统计</button>
         <button className="btn btn-secondary" onClick={onRates}>汇率</button>
+        <button className="btn btn-secondary" onClick={onBacktestPage}>回测</button>
         <button className="btn btn-secondary" onClick={onRefresh}>刷新价格</button>
         <button className="btn btn-secondary" onClick={onClearHistory}>清历史</button>
         <button className="btn btn-secondary" onClick={onToggleHistory}>历史</button>
