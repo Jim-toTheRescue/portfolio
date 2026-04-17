@@ -58,7 +58,6 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
       className={`position-item ${isBuffer ? 'position-buffer' : ''}`}
       onClick={() => onNote?.(position.symbol, position.name)}
       style={{ cursor: 'pointer' }}
-      title={priceChange < 0 ? '当前股价下跌，禁止减仓/清仓操作' : ''}
     >
       <div className="position-info">
         <div className="position-code">
@@ -121,13 +120,11 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
         <button 
           className="btn-small btn-danger" 
           onClick={(e) => { e.stopPropagation(); onReduce(position.symbol); }}
-          disabled={priceChange < 0}
         >减仓</button>
         {position.tier === getConfig().length && (
           <button 
             className="btn-small btn-secondary" 
             onClick={(e) => { e.stopPropagation(); onClear(position.symbol); }}
-            disabled={priceChange < 0}
             style={confirmClear === position.symbol ? { borderColor: 'var(--red)', color: 'var(--red)' } : {}}
           >
             {confirmClear === position.symbol ? '确认' : '清仓'}

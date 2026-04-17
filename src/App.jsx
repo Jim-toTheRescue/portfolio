@@ -126,7 +126,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     if (positions.length > 0) {
       refreshPrices();
     }
-  }, []);
+  }, [positions.length]);
 
   // 计算组合盈亏
   const closedPositions = getClosedPositions();
