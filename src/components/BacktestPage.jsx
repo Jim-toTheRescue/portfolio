@@ -45,6 +45,7 @@ function BacktestPage({ portfolioId }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [portfolioName, setPortfolioName] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -57,6 +58,7 @@ function BacktestPage({ portfolioId }) {
       setPositions(portfolio.positions || []);
       setCash(portfolio.cash || 0);
       setCashCurrency(portfolio.cashCurrency || 'USD');
+      setPortfolioName(portfolio.name || 'portfolio');
     }
     const rates = getExchangeRates();
     if (rates) {
@@ -182,8 +184,9 @@ function BacktestPage({ portfolioId }) {
   const symbolsInPosition = positions?.map(p => p.symbol) || [];
   const matchedSymbols = symbolsInData.filter(s => symbolsInPosition.includes(s));
 
+  const safeName = portfolioName.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') || 'portfolio';
   const fetchCommand = positions?.length > 0
-    ? `python fetch_kline.py --symbols ${positions.map(p => p.symbol).join(' ')} --start ${startDate} --end ${endDate}`
+    ? `python fetch_kline.py --symbols ${positions.map(p => p.symbol).join(' ')} --start ${startDate} --end ${endDate} --filename ${safeName}_kline.json`
     : 'python fetch_kline.py --symbols <股票代码>';
 
   const currentStrategy = STRATEGIES[strategy];
@@ -416,9 +419,7 @@ function BacktestPage({ portfolioId }) {
                 </div>
               ))}
             </div>
-
-            <BacktestCharts dailyData={result.dailyData} />
-
+          
             <h4 style={{ marginBottom: '12px', color: 'var(--text-primary)', marginTop: '24px' }}>权重变化</h4>
             <div style={{ marginBottom: '16px', overflowX: 'auto' }}>
               <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
@@ -471,6 +472,8 @@ function BacktestPage({ portfolioId }) {
                 贡献收益 = 期末NAV × 期末权重 - 100 × 期初权重，合计 = 期末NAV - 100 = 总收益
               </div>
             </div>
+
+            <BacktestCharts dailyData={result.dailyData} />
 
             {result.dailyData.length > 0 && (
               <div style={{ maxHeight: '300px', overflow: 'auto' }}>

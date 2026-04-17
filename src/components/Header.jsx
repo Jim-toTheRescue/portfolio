@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { updatePortfolioName } from '../utils/manfolio';
 import { parseMarket, convertCurrency } from '../utils/helpers';
 
-function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onConfig, onRates, onStats, onBacktest, onBacktestPage, portfolioName, onNameChange, displayCurrency, onCurrencyChange }) {
+function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, onImport, onConfig, onRates, onStats, onBacktest, onBacktestPage, portfolioName, onNameChange, displayCurrency, onCurrencyChange, pnlShowPercent = true, onTogglePnlShow }) {
   const fileInputRef = useRef(null);
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
@@ -116,13 +116,16 @@ function Header({ onBack, onRefresh, onClearHistory, onToggleHistory, onExport, 
   );
 }
 
-function Summary({ stockValue = 0, cash = 0, total = 0, totalInCashCurrency = 0, priceTime, onCashClick, displayCurrency, cashCurrency, onCurrencyChange, history = [], exchangeRates = {}, pnl = 0, pnlPercent = '0.0%', realizedPnL = 0, unrealizedPnL = 0 }) {
+function Summary({ stockValue = 0, cash = 0, total = 0, totalInCashCurrency = 0, priceTime, onCashClick, displayCurrency, 
+  cashCurrency, onCurrencyChange, history = [], exchangeRates = {}, pnl = 0, pnlPercent = '0.0%', realizedPnL = 0, 
+  unrealizedPnL = 0, todayPnL = 0, todayPnLPercent = '0.0%', pnlShowPercent = true, onTogglePnlShow }) {
   const [showTip, setShowTip] = useState(false);
   const cashPercent = total > 0 ? ((cash / total) * 100).toFixed(1) : 0;
   const symbolMap = { USD: '$', HKD: 'hk$', CNY: '¥' };
   const displaySymbol = symbolMap[displayCurrency] || '$';
   const effectiveCash = cash + stockValue * 0.7;
   const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  const todayPnlColor = todayPnL >= 0 ? 'var(--green)' : 'var(--red)';
 
   // 计算年换手率（按自然年，只看卖出）
   let yearlyTurnover = '0%';
@@ -198,11 +201,13 @@ function Summary({ stockValue = 0, cash = 0, total = 0, totalInCashCurrency = 0,
           <span className="summary-value" style={{ color: turnoverColor }}>{yearlyTurnover}</span>
         </div>
         <div className="summary-item">
-          <span className="summary-label">组合盈亏</span>
-          <span className="summary-value" style={{ color: pnlColor }}>
-            {displaySymbol}{pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ({pnlPercent})
+          <span className="summary-label" style={{ cursor: 'pointer' }} onClick={onTogglePnlShow}>{pnlShowPercent ? '组合盈亏' : '今日盈亏'}</span>
+          <span className="summary-value" style={{ color: pnlShowPercent ? pnlColor : todayPnlColor, cursor: 'pointer' }} onClick={onTogglePnlShow}>
+            {pnlShowPercent 
+              ? `${displaySymbol}${pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${pnlPercent})`
+              : `${displaySymbol}${todayPnL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${todayPnLPercent})`}
           </span>
-        </div>
+        </div>        
       </div>
       {priceTime && (
         <div className="summary-item">

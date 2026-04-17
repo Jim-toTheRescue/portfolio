@@ -173,6 +173,11 @@ export function usePortfolio() {
     }
 
     const existing = positions.find((p) => p.symbol === symbol);
+    if (existing) {
+      showToast('已持有该股票，请使用加仓功能');
+      return false;
+    }
+
     let shouldUseBuffer = false;
     if (!existing && total > 0) {
       const newPercent = (cost / total) * 100;
@@ -201,8 +206,8 @@ export function usePortfolio() {
       const targetTierConfig = config[targetTier - 1];
       const targetTierAllCount = positions.filter(p => p.tier === targetTier).length;
       if (targetTierAllCount >= targetTierConfig.limit) {
-        showToast(`第${targetTier}梯队主位已满`);
-        return false;
+        //因为totalPositions < totalMainSlots，所以必然存在更高梯队的空位，检查缓冲位可用性：更高梯队主位空位之和
+        shouldUseBuffer = true;
       }
       
       const maxNewPercent = getUpperLimit(targetTier);
@@ -213,40 +218,9 @@ export function usePortfolio() {
       }
     }
 
-    if (existing && total > 0) {
-      const { currency: existCurrency } = parseMarket(existing.symbol);
-      const existValueSettle = convertCurrency(existing.value, existCurrency, cashCurrency, exchangeRates);
-      const newValue = existValueSettle + cost;
-      const newPercent = (newValue / total) * 100;
-      const existingUpperLimit = getUpperLimit(existing.tier);
-      if (newPercent > existingUpperLimit) {
-        showToast(`持仓超过${existingUpperLimit}%将跳级，请减少股数`);
-        return false;
-      }
-    }
-
     let newPositions;
     let newCash;
-
-    if (existing) {
-      const ns = existing.shares + shares;
-      const nc = existing.shares * existing.avgCost + cost;
-      newPositions = positions.map((p) =>
-        p.symbol === symbol
-          ? {
-              ...p,
-              shares: ns,
-              avgCost: roundCurrency(nc / ns),
-              price,
-              value: roundCurrency(ns * price),
-              tier: p.tier,
-              inBuffer: p.inBuffer,
-              lastTradeTime: new Date().toLocaleString()
-            }
-          : p
-      );
-      newCash = roundCurrency(cash - cost);
-    } else {
+    
     // 计算目标梯队
     const newPercent = (cost / total) * 100;
     const calculatedTier = getTargetTier(newPercent);
@@ -269,20 +243,19 @@ export function usePortfolio() {
         }
       ];
       newCash = roundCurrency(cash - cost);
-      log(
-        makeLog(
-          'buy',
-          symbol,
-          name || symbol,
-          '建仓',
-          shares,
-          shares,
-          price,
-          0,
-          3
-        )
-      );
-    }
+    log(
+      makeLog(
+        'buy',
+        symbol,
+        name || symbol,
+        '建仓',
+        shares,
+        shares,
+        price,
+        0,
+        3
+      )
+    );
 
     setPositions(newPositions);
     setCash(newCash);

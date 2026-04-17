@@ -290,7 +290,7 @@ function AddModal({ show, onClose, positions, cash, cashCurrency, onAdd, getReco
             <input
               type="number"
               className="form-input"
-              value={price}
+              value={price.length == 0 ? fetchedPrice > 0 ? fetchedPrice.toString() : '' : price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder={fetchedPrice > 0 ? fetchedPrice.toString() : '输入或默认实时价'}
             />
@@ -396,8 +396,8 @@ function AddPositionModal({ show, onClose, position, positions, cash, cashCurren
           const upperLimit = getUpperLimit(newTier);
           if (newPercentValue > upperLimit) {
             setWarning('超出上限' + upperLimit + '%');
-          } else if (newPercentValue > (getConfig()[newTier - 1]?.target || getConfig()[0]?.target || 0) + 5) {
-            setWarning('仓位将超过目标，建议减少股数');
+          } else if (newPercentValue > getConfig()[0]?.max) {
+            setWarning('仓位将超过准入梯队目标，建议减少股数');
           } else {
             // 目标梯队已满检查 - 只有晋级时才检查，原地加仓不检查
             if (newTier !== currentTier) {

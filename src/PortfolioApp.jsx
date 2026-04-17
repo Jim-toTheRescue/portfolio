@@ -259,6 +259,7 @@ function PortfolioApp() {
         positions={positions}
         exchangeRates={exchangeRates}
         cashCurrency={cashCurrency}
+        portfolioName={portfolioName}
       />
     </div>
   );

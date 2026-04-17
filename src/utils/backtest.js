@@ -493,8 +493,10 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
       currency: parseSymbolCurrency(p.symbol).currency
     };
   });
+  console.log(positionMap)
 
   const positionSymbols = new Set(positions.map(p => p.symbol));
+  console.log(positionSymbols)
 
   const matchedData = {};
   for (const [symbol, records] of Object.entries(klineData)) {
@@ -508,6 +510,8 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
   }
 
   const firstDate = sortedDates.find(dateStr => new Date(dateStr) >= startDate);
+  console.log(firstDate);
+  
   const lastDate = sortedDates[sortedDates.length - 1];
 
   if (!firstDate) {
@@ -540,6 +544,7 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
       totalEndStockValue += convertToCurrency(value, currency, cashCurrency, exchangeRates);
     }
   }
+  console.log("totalEndStockValue", totalEndStockValue)
   const totalEndAssets = totalEndStockValue + cashInCurrency;
 
   const targetWeights = [];
@@ -557,6 +562,7 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
     }
   }
   targetWeights.push({ symbol: '__CASH__', weight: cashInCurrency / totalEndAssets });
+  console.log("targetWeights", targetWeights);
 
   let totalFirstStockValue = 0;
   for (const symbol of positionSymbols) {
@@ -568,21 +574,6 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
       totalFirstStockValue += convertToCurrency(value, currency, cashCurrency, exchangeRates);
     }
   }
-  const totalFirstAssets = totalFirstStockValue + cashInCurrency;
-
-  const initWeights = [];
-  for (const symbol of positionSymbols) {
-    const price = firstPrices[symbol];
-    const shares = positionMap[symbol].shares;
-    if (price && shares > 0) {
-      const value = shares * price;
-      const currency = positionMap[symbol].currency;
-      const convertedValue = convertToCurrency(value, currency, cashCurrency, exchangeRates);
-      initWeights.push({ symbol, weight: convertedValue / totalFirstAssets });
-    }
-  }
-  initWeights.push({ symbol: '__CASH__', weight: cashInCurrency / totalFirstAssets });
-
   const baseNav = 100;
   const cashAmount = cashInCurrency;
 
@@ -591,9 +582,36 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
     if (w.symbol === '__CASH__') continue;
     const price = firstPrices[w.symbol];
     if (price) {
-      initShares[w.symbol] = totalFirstAssets * w.weight / price;
+      console.log(`${w.symbol} ${totalEndAssets * w.weight }`)
+      initShares[w.symbol] = totalEndAssets * w.weight / price;
     }
   }
+
+  let totalInitStockValue = 0;
+  for (const symbol of positionSymbols) {
+    const shares = initShares[symbol];
+    const price = firstPrices[symbol];
+    if (price && shares > 0) {
+      const value = shares * price;
+      const currency = positionMap[symbol].currency;
+      totalInitStockValue += convertToCurrency(value, currency, cashCurrency, exchangeRates);
+    }
+  }
+  const totalInitAssets = totalInitStockValue + cashInCurrency;
+
+  const initWeights = [];
+  for (const symbol of positionSymbols) {
+    const shares = initShares[symbol];
+    const price = firstPrices[symbol];
+    if (price && shares > 0) {
+      const value = shares * price;
+      const currency = positionMap[symbol].currency;
+      const convertedValue = convertToCurrency(value, currency, cashCurrency, exchangeRates);
+      initWeights.push({ symbol, weight: convertedValue / totalInitAssets });
+    }
+  }
+  initWeights.push({ symbol: '__CASH__', weight: cashInCurrency / totalInitAssets });
+  console.log(initWeights)
 
   let currentNav = baseNav;
   let prevPrices = {};
@@ -627,7 +645,7 @@ function buildDecisionReturns(positions, cash, klineData, startDate, endDate, ex
         totalTodayValue += (initShares[symbol] || 0) * todayPrices[symbol];
       }
 
-      const todayNav = baseNav * totalTodayValue / totalFirstAssets;
+      const todayNav = baseNav * totalTodayValue / totalEndAssets;
       let dailyReturn = 0;
       if (currentNav > 0) {
         dailyReturn = (todayNav - currentNav) / currentNav;

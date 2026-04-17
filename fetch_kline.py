@@ -312,11 +312,11 @@ def save_to_json(df, symbol, output_dir):
     return filepath
 
 
-def save_combined_json(data_dict, output_dir):
+def save_combined_json(data_dict, output_dir, filename=None):
     """保存数据到JSON文件（按股票代码分key）"""
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    filename = 'kline_data.json'
+    filename = filename or 'kline_data.json'
     filepath = output_dir / filename
     
     result = {}
@@ -385,6 +385,11 @@ def main():
         choices=['json', 'csv', 'both'],
         default='json',
         help='输出格式：json(默认), csv, both'
+    )
+    
+    parser.add_argument(
+        '--filename',
+        help='指定输出文件名（仅对json格式有效），如 portfolio_kline.json'
     )
     
     args = parser.parse_args()
@@ -456,7 +461,7 @@ def main():
             sys.exit(1)
     
     if args.format == 'json' and all_data:
-        filepath = save_combined_json(all_data, output_dir)
+        filepath = save_combined_json(all_data, output_dir, args.filename)
         print(f"\n  -> 已保存: {filepath}")
     
     print("\n" + "=" * 50)

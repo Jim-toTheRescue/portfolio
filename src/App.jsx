@@ -141,11 +141,20 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     const rawUnrealized = p.shares * (p.price - p.avgCost);
     return sum + convertCurrency(rawUnrealized, currency, cashCurrency, exchangeRates);
   }, 0);
+
+  const todaySettle = positions.reduce((sum, p) => {
+    const { currency } = parseMarket(p.symbol);
+    let yesPrice = p.price / (1 + (p.priceChange || 0) / 100);
+    const todayPnl = p.shares * yesPrice * p.priceChange/100
+    return sum + convertCurrency(todayPnl, currency, cashCurrency, exchangeRates);    
+  }, 0);
   
   const realizedPnL = convertCurrency(realizedSettle, cashCurrency, displayCurrency, exchangeRates);
   const unrealizedPnL = convertCurrency(unrealizedSettle, cashCurrency, displayCurrency, exchangeRates);
   const totalPnL = realizedPnL + unrealizedPnL;
   const pnlPercent = pnlTotal > 0 ? ((totalPnL / pnlTotal) * 100).toFixed(1) + '%' : '0.0%';
+  const todayPnL = convertCurrency(todaySettle, cashCurrency, displayCurrency, exchangeRates);
+  const todayPnLPercent = pnlTotal - todayPnL > 0 ? ((todayPnL / (pnlTotal - todayPnL)) * 100).toFixed(1) + '%' : '0.0%';
 
   const handleBack = () => {
     navigate('/manfolio');
@@ -161,6 +170,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [showRatesModal, setShowRatesModal] = useState(false);
   const [selectedPosition, setSelectedPosition] = useState(null);
+  const [pnlShowPercent, setPnlShowPercent] = useState(true);
 
   useEffect(() => {
     const handleImport = (e) => {
@@ -217,6 +227,8 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         onNameChange={() => setNameKey(k => k + 1)}
         displayCurrency={displayCurrency}
         onCurrencyChange={changeDisplayCurrency}
+        pnlShowPercent={pnlShowPercent}
+        onTogglePnlShow={() => setPnlShowPercent(!pnlShowPercent)}
       />
 
       <Summary
@@ -235,6 +247,10 @@ function PortfolioAppWrapper({ folioId, navigate }) {
         pnlPercent={pnlPercent}
         realizedPnL={realizedPnL}
         unrealizedPnL={unrealizedPnL}
+        todayPnL={todayPnL}
+        todayPnLPercent={todayPnLPercent}
+        pnlShowPercent={pnlShowPercent}
+        onTogglePnlShow={() => setPnlShowPercent(!pnlShowPercent)}
       />
 
       <div className="add-section" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -269,6 +285,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             getDisplayTotalWithCash={getDisplayTotalWithCash}
             showToast={showToast}
             history={history}
+            pnlShowPercent={pnlShowPercent}
           />
         ))}
       </div>

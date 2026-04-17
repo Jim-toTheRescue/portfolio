@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { runBacktest, formatStats } from '../utils/backtest';
 
-function BacktestModal({ show, onClose, positions, exchangeRates, cashCurrency }) {
+function BacktestModal({ show, onClose, positions, exchangeRates, cashCurrency, portfolioName = 'portfolio' }) {
   const [klineData, setKlineData] = useState(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -102,8 +102,9 @@ function BacktestModal({ show, onClose, positions, exchangeRates, cashCurrency }
   const symbolsInPosition = positions?.map(p => p.symbol) || [];
   const matchedSymbols = symbolsInData.filter(s => symbolsInPosition.includes(s));
 
+  const safeName = (portfolioName || 'portfolio').replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
   const fetchCommand = positions?.length > 0
-    ? `python fetch_kline.py --symbols ${positions.map(p => p.symbol).join(' ')} --start ${startDate} --end ${endDate}`
+    ? `python fetch_kline.py --symbols ${positions.map(p => p.symbol).join(' ')} --start ${startDate} --end ${endDate} --filename ${safeName}_kline.json`
     : 'python fetch_kline.py --symbols <股票代码> --start <开始日期> --end <结束日期>';
 
   return (
