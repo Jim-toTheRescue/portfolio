@@ -340,6 +340,12 @@ export default function NotesPage() {
                 <textarea
                   value={inputContent}
                   onChange={e => setInputContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleUpdateNote();
+                    }
+                  }}
                   style={{
                     width: '100%',
                     minHeight: '80px',
