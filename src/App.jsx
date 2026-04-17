@@ -119,6 +119,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
     getDisplayCash,
     getDisplayValue,
     total: totalSettle,
+    togglePositionStatus,
   } = usePortfolio();
 
   // 进入页面时自动刷新价格
@@ -284,6 +285,7 @@ function PortfolioAppWrapper({ folioId, navigate }) {
             getDisplayValue={getDisplayValue}
             getDisplayTotalWithCash={getDisplayTotalWithCash}
             showToast={showToast}
+            onToggleStatus={togglePositionStatus}
             history={history}
             pnlShowPercent={pnlShowPercent}
           />

@@ -154,8 +154,21 @@ export function usePortfolio() {
   // 辅助函数
   const roundCurrency = (value) => Math.round(value * 100) / 100;
 
+  // 检查持仓状态是否允许交易（只有观察中才能交易，兼容旧数据默认观察中）
+  const canTradePosition = useCallback((pos) => {
+    if (!pos) return false;
+    return pos.status === 'observing' || !pos.status;
+  }, []);
+
   // 建仓
   const addPosition = useCallback((symbol, name, shares, price) => {
+    // 检查持仓状态是否允许交易
+    const existingCheck = positions.find((p) => p.symbol === symbol);
+    if (existingCheck && !canTradePosition(existingCheck)) {
+      showToast('只有"观察中"状态才能交易');
+      return false;
+    }
+
     const rawCost = shares * price;
     const { currency } = parseMarket(symbol);
     const cost = convertCurrency(rawCost, currency, cashCurrency, exchangeRates);
@@ -239,7 +252,8 @@ export function usePortfolio() {
           tier: targetTier,
           inBuffer: shouldUseBuffer,
           priceChange: 0,
-          lastTradeTime: new Date().toLocaleString()
+          lastTradeTime: new Date().toLocaleString(),
+          status: 'observing'
         }
       ];
       newCash = roundCurrency(cash - cost);
@@ -260,12 +274,18 @@ export function usePortfolio() {
     setPositions(newPositions);
     setCash(newCash);
     return true;
-  }, [positions, cash, log, showToast]);
+  }, [positions, cash, log, showToast, canTradePosition]);
 
   // 调仓
   const adjustPosition = useCallback((symbol, adjShares, price, isAdd) => {
     const pos = positions.find((p) => p.symbol === symbol);
     if (!pos) return false;
+
+    // 检查持仓状态是否允许交易
+    if (!canTradePosition(pos)) {
+      showToast('该持仓状态修改未满1周，不可交易');
+      return false;
+    }
 
     const priceVal = price || pos.price;
     const rawCost = adjShares * priceVal;
@@ -413,12 +433,18 @@ export function usePortfolio() {
       setCash(newCash);
     }
     return true;
-  }, [positions, cash, log, showToast]);
+  }, [positions, cash, log, showToast, canTradePosition]);
 
   // 清仓
   const clearPosition = useCallback((symbol, price) => {
     const pos = positions.find((p) => p.symbol === symbol);
     if (!pos) return false;
+
+    // 检查持仓状态是否允许交易
+    if (!canTradePosition(pos)) {
+      showToast('该持仓状态修改未满1周，不可交易');
+      return false;
+    }
 
     const { currency } = parseMarket(pos.symbol);
     const priceVal = price || pos.price;
@@ -441,6 +467,33 @@ export function usePortfolio() {
     setCash(roundCurrency(newCash));
     saveCashToStorage(roundCurrency(newCash));  // 不传 cashCurrency，保持原配置
   }, []);
+
+  // 切换持仓状态（交易当天不允许修改）
+  const togglePositionStatus = useCallback((symbol) => {
+    const pos = positions.find(p => p.symbol === symbol);
+    if (pos?.lastTradeTime) {
+      const lastDate = new Date(pos.lastTradeTime).toDateString();
+      const today = new Date().toDateString();
+      if (lastDate === today) {
+        showToast('今日已交易，明天才能修改状态');
+        return;
+      }
+    }
+
+    setPositions(prev => {
+      const newPositions = prev.map(p => {
+        if (p.symbol === symbol) {
+          const statusCycle = ['observing', 'verified', 'core'];
+          const currentIdx = statusCycle.indexOf(p.status || 'observing');
+          const nextIdx = (currentIdx + 1) % statusCycle.length;
+          return { ...p, status: statusCycle[nextIdx], statusChangeTime: Date.now() };
+        }
+        return p;
+      });
+      updatePositions(newPositions);
+      return newPositions;
+    });
+  }, [positions, showToast]);
 
   // 出入金（记录日志）
   const moveCash = useCallback((newCash) => {
@@ -749,6 +802,7 @@ export function usePortfolio() {
     clearHistory,
     getRecommendation,
     showToast,
+    togglePositionStatus,
     fetchExchangeRates,
     changeDisplayCurrency,
     setManualRate,

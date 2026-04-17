@@ -45,7 +45,8 @@ function PortfolioApp() {
     getDisplayStockValue,
     getDisplayCash,
     getDisplayValue,
-    cashCurrency
+    cashCurrency,
+    togglePositionStatus
   } = usePortfolio();
 
   // 进入页面时自动刷新价格
@@ -168,6 +169,7 @@ function PortfolioApp() {
             getDisplayValue={getDisplayValue}
             getDisplayTotalWithCash={getDisplayTotalWithCash}
             showToast={showToast}
+            onToggleStatus={togglePositionStatus}
           />
         ))}
       </div>

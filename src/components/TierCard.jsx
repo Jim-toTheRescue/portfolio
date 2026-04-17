@@ -2,9 +2,15 @@ import { useState } from 'react';
 import { getConfig, getTierConfig } from '../utils/constants';
 import { tierName, getUpperLimit, parseMarket, convertCurrency, getCurrencySymbol } from '../utils/helpers';
 
-function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, showToast, showProfit, onToggleProfit, pnlShowPercent = true }) {
+function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, showToast, showProfit, onToggleStatus, pnlShowPercent = true }) {
   const tierIdx = position.tier - 1;
   const tierConfig = getConfig()[tierIdx] || getConfig()[2];
+  
+  const statusLabels = { observing: '观察中', verified: '已验证', core: '核心仓' };
+  const statusColors = { observing: '#ff9800', verified: '#4caf50', core: '#2196f3' };
+  
+  // 只有观察中才能交易，兼容旧数据默认观察中
+  const canTrade = position.status === 'observing' || !position.status;
   
   // 使用结算货币计算市值和占比
   const { currency } = parseMarket(position.symbol);
@@ -70,6 +76,29 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
           >
             {position?.name || ''}
           </span>
+          {(() => {
+            const lastDate = position.lastTradeTime ? new Date(position.lastTradeTime).toDateString() : null;
+            const today = new Date().toDateString();
+            const tradedToday = lastDate === today;
+            return (
+              <span 
+                style={{ 
+                  marginLeft: '6px', 
+                  fontSize: '10px', 
+                  color: statusColors[position.status] || statusColors.observing,
+                  cursor: tradedToday ? 'not-allowed' : 'pointer',
+                  textDecoration: tradedToday ? 'none' : 'underline'
+                }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (!tradedToday) onToggleStatus?.(position.symbol); 
+                }}
+                title={tradedToday ? '今日已交易，明天才能修改状态' : '点击切换状态'}
+              >
+                {statusLabels[position.status] || statusLabels.observing}
+              </span>
+            );
+          })()}
         </div>
         <div className="position-name">
           {position?.shares || 0}股 · {currencySymbol}{position?.price || 0}
@@ -79,10 +108,6 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
             >
               {pnlShowPercent ? (
                 <>
-                  {priceChange > 0 ? '+' : ''}{priceChange}%
-                </>
-              ) : (
-                <>
                   {(() => {
                     const profitPercent = position.avgCost > 0 ? ((position.price - position.avgCost) / position.avgCost * 100) : 0;
                     return (
@@ -91,6 +116,10 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
                       </span>
                     );
                   })()}
+                </>
+              ) : (
+                <>
+                  {priceChange > 0 ? '+' : ''}{priceChange}%
                 </>
               )}
             </span>
@@ -116,15 +145,19 @@ function PositionItem({ position, total, cash, isBuffer, onAdd, onReduce, onClea
         {recommendation && <div className="recommendation">{recommendation}</div>}
       </div>
       <div className="position-actions">
-        <button className="btn-small btn-primary" onClick={(e) => { e.stopPropagation(); onAdd(position.symbol); }}>加仓</button>
+        <button className="btn-small btn-primary" onClick={(e) => { e.stopPropagation(); onAdd(position.symbol); }} disabled={!canTrade} title={!canTrade ? '只有"观察中"状态才能交易' : ''}>加仓</button>
         <button 
           className="btn-small btn-danger" 
           onClick={(e) => { e.stopPropagation(); onReduce(position.symbol); }}
+          disabled={!canTrade}
+          title={!canTrade ? '只有"观察中"状态才能交易' : ''}
         >减仓</button>
         {position.tier === getConfig().length && (
           <button 
             className="btn-small btn-secondary" 
             onClick={(e) => { e.stopPropagation(); onClear(position.symbol); }}
+            disabled={!canTrade}
+            title={!canTrade ? '只有"观察中"状态才能交易' : ''}
             style={confirmClear === position.symbol ? { borderColor: 'var(--red)', color: 'var(--red)' } : {}}
           >
             {confirmClear === position.symbol ? '确认' : '清仓'}
@@ -139,7 +172,7 @@ function EmptySlot({ isBuffer }) {
   return <div className={`empty-slot ${isBuffer ? 'buffer' : ''}`}>{isBuffer ? '缓冲' : '空位'}</div>;
 }
 
-export default function TierCard({ tier, positions, cash, total, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, getDisplayTotalWithCash, showToast, pnlShowPercent = true }) {
+export default function TierCard({ tier, positions, cash, total, onAdd, onReduce, onClear, onNote, confirmClear, displayCurrency, exchangeRates, cashCurrency, getDisplayValue, getDisplayTotalWithCash, showToast, onToggleStatus, pnlShowPercent = true }) {
   const tierConfig = getConfig()[tier - 1] || getConfig()[0];
   const mainPositions = positions.filter(p => p.tier === tier && !p.inBuffer);
   const bufferPositions = positions.filter(p => p.tier === tier && p.inBuffer);
@@ -200,6 +233,7 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
             cashCurrency={cashCurrency}
             getDisplayValue={getDisplayValue}
             showToast={showToast}
+            onToggleStatus={onToggleStatus}
             pnlShowPercent={pnlShowPercent}
           />
         ))}
@@ -232,6 +266,7 @@ export default function TierCard({ tier, positions, cash, total, onAdd, onReduce
                 cashCurrency={cashCurrency}
                 getDisplayValue={getDisplayValue}
                 showToast={showToast}
+                onToggleStatus={onToggleStatus}
                 pnlShowPercent={pnlShowPercent}
               />
             ))}
